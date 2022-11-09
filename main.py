@@ -60,14 +60,21 @@ class Graph: #Class of graph
 
     def add_dummy_edges(self, u, v):#add dummy edges with type "D" between two nodes if already edge exist between them increase the CN 
         e = self.return_edges(u, v)
+        print(e)
         if e == None:
             self.edges.append((u, v, 1, 'D'))
             self.return_node(u).append_edges(v)
             self.return_node(v).append_edges(u)
         else:
-            cn = e[2] + 1
-            self.edges.remove(e)
-            self.edges.append((e[0], e[1], cn, e[3]))
+            if len(e) == 1:
+                e = e[0]
+                cn = e[2] + 1
+                self.edges.remove(e)
+                self.edges.append((e[0], e[1], cn, e[3]))
+            else:
+                cn = e[2] + 1
+                self.edges.remove(e)
+                self.edges.append((e[0], e[1], cn, e[3]))
 
     def update_edges(self, a, b, count,e_type): #update an edge between node a nad b with type = e_type to the new number
         e_list = self.return_edges(a, b)
@@ -517,6 +524,7 @@ def detect_segment_vertices(component, edges): # this function return those node
             v.add(e[0])
             v.add(e[1])
     return sorted(list(set(component) - v))
+
 def detect_segment_odd_degree(component, component_edges): # detect vertices with odd degree
     ans = []
     d = {}
@@ -537,6 +545,9 @@ def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts i
     for v in component:
         g2.vertices.append(g.return_node(v))
     odd_vertices = []
+    print('Component', component)
+    print('Component edges', component_edges)
+
     segment_vertices = detect_segment_vertices(component, component_edges)
     odd_vertices = detect_segment_odd_degree(component, component_edges)
     print('ODD vertices', odd_vertices)
