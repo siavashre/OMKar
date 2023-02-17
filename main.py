@@ -59,15 +59,29 @@ class Graph: #Class of graph
         return None
 
     def add_dummy_edges(self, u, v):#add dummy edges with type "D" between two nodes if already edge exist between them increase the CN 
-        e = self.return_edges(u, v)
-        if e == None:
+        e = self.return_edges(u, v) 
+        if max(u,v)%2 == 1 and abs(u-v) == 1: #if we need to add dummy edge between two nodes of one segment, remove it instead of adding it
+            if len(e) == 1:
+                e = e[0]
+                cn = e[2] - 1
+                self.edges.remove(e)
+                self.edges.append((e[0], e[1], cn, e[3]))
+        #el
+        elif e == None:
             self.edges.append((u, v, 1, 'D'))
             self.return_node(u).append_edges(v)
             self.return_node(v).append_edges(u)
         else:
-            cn = e[2] + 1
-            self.edges.remove(e)
-            self.edges.append((e[0], e[1], cn, e[3]))
+            if len(e) == 1:
+                e = e[0]
+                cn = e[2] + 1
+                self.edges.remove(e)
+                self.edges.append((e[0], e[1], cn, e[3]))
+            else:
+                e = e[0]
+                cn = e[2] + 1
+                self.edges.remove(e)
+                self.edges.append((e[0], e[1], cn, e[3]))
 
     def update_edges(self, a, b, count,e_type): #update an edge between node a nad b with type = e_type to the new number
         e_list = self.return_edges(a, b)
@@ -377,13 +391,14 @@ def estimating_edge_multiplicities_in_CC(component):
     # print('obj', objective)
     # print('Sv_sum', sv_sum)
     # objective = 10 * objective  - 9 * sv_sum + 15 * cn_tune
-    objective = 2 * objective  - 1 * sv_sum + 4 * cn_tune
+    objective = 2 * objective  - 1 * sv_sum + 7 * cn_tune
     # print('obj', objective)
     Lp_prob += objective
     print(Lp_prob)
     status = Lp_prob.solve()
     print(p.LpStatus[status])  # The solution status
     print(Lp_prob.variables())
+    print('ali', cn_tune)
     for i in Lp_prob.variables():
         #Set edges multiplicity based on variiable values
         if i.name != '__dummy' and i.name.startswith('X'):
@@ -588,8 +603,6 @@ def detect_del_dup_cn(chromosome, start, end): # this function detect that for a
             if overlap > 0.9 * (s.end - s.start):
                 if (end - start)< 1.2 * (s.end - s.start):
                     if (s.int_cn != segments[(i+1)%len(segments)].int_cn and s.chromosome == segments[(i+1)%len(segments)].chromosome) or (s.int_cn != segments[i-1].int_cn and s.chromosome == segments[i-1].chromosome):
-                        # print('Kir', chromosome, start, end, overlap)
-                        # print('Kir', start , end, s.start,s.end)
                         return True, s.start , s.end
             if overlap > 0.9 * (end - start):
                 if (s.end - s.start)< 1.2 * (end - start):
@@ -913,12 +926,12 @@ print(g.edges)
 Plot_graph(g,file,name)
 connected_components = find_connected_components(g)
 for component in connected_components:
-    # if 58 in component:
+    if 24 in component:
         component_edges = estimating_edge_multiplicities_in_CC(component)
 connected_components = find_connected_components(g)
 paths = []
 for component in connected_components:
-    # if 58 in component:
+    if 24 in component:
         component_edges = return_all_edges_in_cc(component, g)
         print(component)
         print(component_edges)
