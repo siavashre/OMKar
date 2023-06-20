@@ -59,15 +59,9 @@ class Graph: #Class of graph
         return None
 
     def add_dummy_edges(self, u, v):#add dummy edges with type "D" between two nodes if already edge exist between them increase the CN 
-        e = self.return_edges(u, v) 
-        if max(u,v)%2 == 1 and abs(u-v) == 1: #if we need to add dummy edge between two nodes of one segment, remove it instead of adding it
-            if len(e) == 1:
-                e = e[0]
-                cn = e[2] - 1
-                self.edges.remove(e)
-                self.edges.append((e[0], e[1], cn, e[3]))
-        #el
-        elif e == None:
+        e = self.return_edges(u, v)
+        print(e)
+        if e == None:
             self.edges.append((u, v, 1, 'D'))
             self.return_node(u).append_edges(v)
             self.return_node(v).append_edges(u)
@@ -78,7 +72,6 @@ class Graph: #Class of graph
                 self.edges.remove(e)
                 self.edges.append((e[0], e[1], cn, e[3]))
             else:
-                e = e[0]
                 cn = e[2] + 1
                 self.edges.remove(e)
                 self.edges.append((e[0], e[1], cn, e[3]))
@@ -391,14 +384,13 @@ def estimating_edge_multiplicities_in_CC(component):
     # print('obj', objective)
     # print('Sv_sum', sv_sum)
     # objective = 10 * objective  - 9 * sv_sum + 15 * cn_tune
-    objective = 2 * objective  - 1 * sv_sum + 7 * cn_tune
+    objective = 2 * objective  - 1 * sv_sum + 4 * cn_tune
     # print('obj', objective)
     Lp_prob += objective
     print(Lp_prob)
     status = Lp_prob.solve()
     print(p.LpStatus[status])  # The solution status
     print(Lp_prob.variables())
-    print('ali', cn_tune)
     for i in Lp_prob.variables():
         #Set edges multiplicity based on variiable values
         if i.name != '__dummy' and i.name.startswith('X'):
@@ -532,6 +524,7 @@ def detect_segment_vertices(component, edges): # this function return those node
             v.add(e[0])
             v.add(e[1])
     return sorted(list(set(component) - v))
+
 def detect_segment_odd_degree(component, component_edges): # detect vertices with odd degree
     ans = []
     d = {}
@@ -552,6 +545,9 @@ def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts i
     for v in component:
         g2.vertices.append(g.return_node(v))
     odd_vertices = []
+    print('Component', component)
+    print('Component edges', component_edges)
+
     segment_vertices = detect_segment_vertices(component, component_edges)
     odd_vertices = detect_segment_odd_degree(component, component_edges)
     print('ODD vertices', odd_vertices)
@@ -603,6 +599,8 @@ def detect_del_dup_cn(chromosome, start, end): # this function detect that for a
             if overlap > 0.9 * (s.end - s.start):
                 if (end - start)< 1.2 * (s.end - s.start):
                     if (s.int_cn != segments[(i+1)%len(segments)].int_cn and s.chromosome == segments[(i+1)%len(segments)].chromosome) or (s.int_cn != segments[i-1].int_cn and s.chromosome == segments[i-1].chromosome):
+                        # print('Kir', chromosome, start, end, overlap)
+                        # print('Kir', start , end, s.start,s.end)
                         return True, s.start , s.end
             if overlap > 0.9 * (end - start):
                 if (s.end - s.start)< 1.2 * (end - start):
@@ -698,7 +696,12 @@ parser.add_argument("-o", "--output", help="path to output dir", required=True)
 args = parser.parse_args()
 segments, all_seg = parse_cnvcall(args.cnv)
 smap = parse_smap(args.smap) 
-rcop, rcov = parse_rcmap(args.rcmap)
+rcov, rcop = parse_rcmap(args.rcmap)
+chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
+chrX_cn = 2
+if chrY_cn > 0:
+    chrX_cn = 1
+    chrY_cn = 1
 xmap = parse_xmap(args.xmap)
 if args.centro is not None: # this will parse centromere region. It can be hard coded. 
     centro = parse_centro(args.centro)
@@ -727,6 +730,12 @@ for k in rcop.keys():
         new_seg.chromosome = k
         new_seg.fractional_cn = 2
         new_seg.int_cn = 2 #assumption that sample is diploide. default CN = 2
+        if int(k) == 23:
+            new_seg.fractional_cn = chrX_cn
+            new_seg.int_cn = chrX_cn
+        if int(k) == 24:
+            new_seg.fractional_cn = chrY_cn
+            new_seg.int_cn = chrY_cn
         new_seg.bp = [0, list(rcop[k].keys())[-1]]
         segments.append(new_seg)
     else:
@@ -741,6 +750,12 @@ for k in rcop.keys():
                 new_seg.chromosome = k
                 new_seg.fractional_cn = 2
                 new_seg.int_cn = 2 #assumption that sample is diploide. default CN = 2
+                if int(k) == 23:
+                    new_seg.fractional_cn = chrX_cn
+                    new_seg.int_cn = chrX_cn
+                if int(k) == 24:
+                    new_seg.fractional_cn = chrY_cn
+                    new_seg.int_cn = chrY_cn
                 new_seg.bp = [start, end]
                 segments.append(new_seg)
             prev_point = s.end
@@ -753,6 +768,12 @@ for k in rcop.keys():
             new_seg.chromosome = k
             new_seg.fractional_cn = 2
             new_seg.int_cn = 2
+            if int(k) == 23:
+                new_seg.fractional_cn = chrX_cn
+                new_seg.int_cn = chrX_cn
+            if int(k) == 24:
+                new_seg.fractional_cn = chrY_cn
+                new_seg.int_cn = chrY_cn
             new_seg.bp = [start, end]
             segments.append(new_seg)
 
@@ -926,16 +947,16 @@ print(g.edges)
 Plot_graph(g,file,name)
 connected_components = find_connected_components(g)
 for component in connected_components:
-    # if 24 in component:
-    component_edges = estimating_edge_multiplicities_in_CC(component)
+    # if 58 in component:
+        component_edges = estimating_edge_multiplicities_in_CC(component)
 connected_components = find_connected_components(g)
 paths = []
 for component in connected_components:
-    # if 24 in component:
-    component_edges = return_all_edges_in_cc(component, g)
-    print(component)
-    print(component_edges)
-    paths.append(printEulerTour(component, component_edges, g))
+    # if 58 in component:
+        component_edges = return_all_edges_in_cc(component, g)
+        print(component)
+        print(component_edges)
+        paths.append(printEulerTour(component, component_edges, g))
 # print(paths)
 #write in the output
 with open(output , 'w') as f :
