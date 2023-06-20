@@ -696,7 +696,12 @@ parser.add_argument("-o", "--output", help="path to output dir", required=True)
 args = parser.parse_args()
 segments, all_seg = parse_cnvcall(args.cnv)
 smap = parse_smap(args.smap) 
-rcop, rcov = parse_rcmap(args.rcmap)
+rcov, rcop = parse_rcmap(args.rcmap)
+chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
+chrX_cn = 2
+if chrY_cn > 0:
+    chrX_cn = 1
+    chrY_cn = 1
 xmap = parse_xmap(args.xmap)
 if args.centro is not None: # this will parse centromere region. It can be hard coded. 
     centro = parse_centro(args.centro)
@@ -725,6 +730,12 @@ for k in rcop.keys():
         new_seg.chromosome = k
         new_seg.fractional_cn = 2
         new_seg.int_cn = 2 #assumption that sample is diploide. default CN = 2
+        if int(k) == 23:
+            new_seg.fractional_cn = chrX_cn
+            new_seg.int_cn = chrX_cn
+        if int(k) == 24:
+            new_seg.fractional_cn = chrY_cn
+            new_seg.int_cn = chrY_cn
         new_seg.bp = [0, list(rcop[k].keys())[-1]]
         segments.append(new_seg)
     else:
@@ -739,6 +750,12 @@ for k in rcop.keys():
                 new_seg.chromosome = k
                 new_seg.fractional_cn = 2
                 new_seg.int_cn = 2 #assumption that sample is diploide. default CN = 2
+                if int(k) == 23:
+                    new_seg.fractional_cn = chrX_cn
+                    new_seg.int_cn = chrX_cn
+                if int(k) == 24:
+                    new_seg.fractional_cn = chrY_cn
+                    new_seg.int_cn = chrY_cn
                 new_seg.bp = [start, end]
                 segments.append(new_seg)
             prev_point = s.end
@@ -751,6 +768,12 @@ for k in rcop.keys():
             new_seg.chromosome = k
             new_seg.fractional_cn = 2
             new_seg.int_cn = 2
+            if int(k) == 23:
+                new_seg.fractional_cn = chrX_cn
+                new_seg.int_cn = chrX_cn
+            if int(k) == 24:
+                new_seg.fractional_cn = chrY_cn
+                new_seg.int_cn = chrY_cn
             new_seg.bp = [start, end]
             segments.append(new_seg)
 
