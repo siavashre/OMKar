@@ -634,22 +634,34 @@ def detect_receprical_translocation(sv): #sometimes one of these reciprocal tran
                 if i_dir1 != sv_dir1 and i_dir2 != sv_dir2:
                     return True, i
     return False, None
-
+def check_non_centromeric_path(p):
+    for i in range(0,len(p)-1,2):
+        u = g.return_node(p[i])
+        v = g.return_node(p[i+1])
+        if u.chromosome == v.chromosome:
+            if min(u.pos,v.pos)< min(centro['chr'+str(u.chromosome)]) and max(u.pos, v.pos)> max(centro['chr'+str(u.chromosome)]):
+                return True
+    return False
 def convert_path_to_segment(p,g): # this is important function that convert Eulerion path with vertices ID to segment path. 
     component = list(set(p))
     component_edges = return_all_edges_in_cc(component, g)
     segment_vertices = detect_segment_vertices(component, component_edges)
+    print('component',component)
+    print('component_edges',component_edges)
+    print('segment_vertices',segment_vertices)
     ans = []
     temp = [p[0]]
     for i in range(1,len(p)-1):
         if p[i] in segment_vertices and p[i-1]==p[i+1]:
             temp.append(p[i])
-            ans.append(temp)
+            if check_non_centromeric_path(temp):
+                ans.append(temp)
             temp = [p[i]]
         else:
             temp.append(p[i])
     temp.append(p[-1])
-    ans.append(temp)
+    if check_non_centromeric_path(temp):
+        ans.append(temp)
     ans2 = []
     for p in ans:
         temp = ''
@@ -947,17 +959,17 @@ print(g.edges)
 Plot_graph(g,file,name)
 connected_components = find_connected_components(g)
 for component in connected_components:
-    # if 58 in component:
+    if 29 in component:
         component_edges = estimating_edge_multiplicities_in_CC(component)
 connected_components = find_connected_components(g)
 paths = []
 for component in connected_components:
-    # if 58 in component:
+    if 29 in component:
         component_edges = return_all_edges_in_cc(component, g)
         print(component)
         print(component_edges)
         paths.append(printEulerTour(component, component_edges, g))
-# print(paths)
+print('reza',paths)
 #write in the output
 with open(output , 'w') as f :
     f.write('Segment\tNumber\tChromosome\tStart\tEnd\tStartNode\tEndNode\n')
