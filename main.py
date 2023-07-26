@@ -537,6 +537,29 @@ def detect_segment_odd_degree(component, component_edges): # detect vertices wit
         if d[i]%2 != 0:
             ans.append(i)
     return ans
+def scoring_paths(path_list, segment_vertices):
+    best_score = 99999
+    best_path = ''
+    for p in path_list:
+        ans = []
+        temp = [p[0]]
+        score = 0 
+        for i in range(1,len(p)-1):
+            if p[i] in segment_vertices and p[i-1]==p[i+1]:
+                temp.append(p[i])
+                score = score + 10 * abs(check_non_centromeric_path(temp) - 1)
+                ans.append(temp)
+                temp = [p[i]]
+            else:
+                temp.append(p[i])
+        temp.append(p[-1])
+        score = score + 10 * abs(check_non_centromeric_path(temp) - 1)
+        ans.append(temp)
+        print('paths_score', score, ans)
+        if score < best_score:
+            best_score = score
+            best_path = p
+    return best_path
 
 
 def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts in connected components in graph g
@@ -555,9 +578,12 @@ def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts i
     #     g2.add_dummy_edges(segment_vertices[i], segment_vertices[i+1])
     # print(g2.edges)
     print('TOUR')
-    print(segment_vertices)
+    print('segment_vertices',segment_vertices)
     if len(odd_vertices) == 0: # Eulerian circuites exist 
-        a = printEulerUtil(g2, segment_vertices[0], -1)
+        a = []
+        for i in segment_vertices:
+            a.append(printEulerUtil(g2, i, -1))
+        a = scoring_paths(a,segment_vertices)
     elif len(odd_vertices) == 2: # Eulerian path exists
         if odd_vertices[0] in segment_vertices: #it is better to start path finding from telomere regions
             a = printEulerUtil(g2, odd_vertices[0], -1)
@@ -565,12 +591,19 @@ def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts i
             a = printEulerUtil(g2, odd_vertices[1], -1)
         else:#If not exist add a dummy edges to make it Eulerian and then find from segment vertices
             g2.add_dummy_edges(odd_vertices[0],odd_vertices[1])
-            a = printEulerUtil(g2, segment_vertices[0], -1)
+            a = []
+            for i in segment_vertices:
+                a.append(printEulerUtil(g2, i, -1))
+            a = scoring_paths(a,segment_vertices)
     else: # if more than two vertices with odd degree. Connect them to each other to make the graph Eulerian 
         if len(set(odd_vertices).intersection(set(segment_vertices))) == 0: #no telomere nodes with odd degree connect all of them to gether like previouse setp
             for i in range(0,len(odd_vertices),2):
                 g2.add_dummy_edges(odd_vertices[i],odd_vertices[i+1])
-            a = printEulerUtil(g2, segment_vertices[0], -1)
+            a = []
+            for i in segment_vertices:
+                a.append(printEulerUtil(g2, i, -1))
+            a = scoring_paths(a,segment_vertices)
+            # a = printEulerUtil(g2, segment_vertices[-1], -1)#Siavash in chaneed shode 
         else:
             count = 0
             save_index = 0
@@ -599,8 +632,6 @@ def detect_del_dup_cn(chromosome, start, end): # this function detect that for a
             if overlap > 0.9 * (s.end - s.start):
                 if (end - start)< 1.2 * (s.end - s.start):
                     if (s.int_cn != segments[(i+1)%len(segments)].int_cn and s.chromosome == segments[(i+1)%len(segments)].chromosome) or (s.int_cn != segments[i-1].int_cn and s.chromosome == segments[i-1].chromosome):
-                        # print('Kir', chromosome, start, end, overlap)
-                        # print('Kir', start , end, s.start,s.end)
                         return True, s.start , s.end
             if overlap > 0.9 * (end - start):
                 if (s.end - s.start)< 1.2 * (end - start):
@@ -635,13 +666,14 @@ def detect_receprical_translocation(sv): #sometimes one of these reciprocal tran
                     return True, i
     return False, None
 def check_non_centromeric_path(p):
+    count = 0 
     for i in range(0,len(p)-1,2):
         u = g.return_node(p[i])
         v = g.return_node(p[i+1])
         if u.chromosome == v.chromosome:
             if min(u.pos,v.pos)< min(centro['chr'+str(u.chromosome)]) and max(u.pos, v.pos)> max(centro['chr'+str(u.chromosome)]):
-                return True
-    return False
+                count += 1
+    return count
 def convert_path_to_segment(p,g): # this is important function that convert Eulerion path with vertices ID to segment path. 
     component = list(set(p))
     component_edges = return_all_edges_in_cc(component, g)
@@ -959,17 +991,17 @@ print(g.edges)
 Plot_graph(g,file,name)
 connected_components = find_connected_components(g)
 for component in connected_components:
-    if 29 in component:
+    # if 29 in component:
         component_edges = estimating_edge_multiplicities_in_CC(component)
 connected_components = find_connected_components(g)
 paths = []
 for component in connected_components:
-    if 29 in component:
+    # if 29 in component:
         component_edges = return_all_edges_in_cc(component, g)
         print(component)
         print(component_edges)
         paths.append(printEulerTour(component, component_edges, g))
-print('reza',paths)
+print('paths',paths)
 #write in the output
 with open(output , 'w') as f :
     f.write('Segment\tNumber\tChromosome\tStart\tEnd\tStartNode\tEndNode\n')
