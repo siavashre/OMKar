@@ -334,6 +334,7 @@ def estimating_edge_multiplicities_in_CC(component):
         e = component_edges[i]
         if e[3] != 'S': #in it is not Segment edge
             component_edges[i] = [e, p.LpVariable('X' + str(i), lowBound=0, cat=p.LpInteger)] #create an ILP variable Xi for >= 0
+            print('X' + str(i), e)
             if e[3] == 'SV':
                 if g.return_node(e[0]).chromosome != g.return_node(e[1]).chromosome: # I want to give more weight to the translocation SVs
                     Lp_prob+= component_edges[i][1] >=0 #sum in the LP_probe
@@ -347,6 +348,7 @@ def estimating_edge_multiplicities_in_CC(component):
                     Lp_prob+= component_edges[i][1] >=1
         else: #if it is Segment edge
             component_edges[i] = [e, p.LpVariable('Y' + str(i), cat=p.LpInteger),p.LpVariable('Z' + str(i), cat=p.LpInteger)] # variable Y_i is for tuning CN of each segment if we need to change the CN
+            print('Y' + str(i), e)
             # For having abselute value in ILP for we need to define variable Z as well. 
             Lp_prob += component_edges[i][2]>= -component_edges[i][1] #this is used for defining abselute value
             Lp_prob += component_edges[i][2]>= component_edges[i][1]
@@ -375,7 +377,8 @@ def estimating_edge_multiplicities_in_CC(component):
                     Lp_prob += cond <= e[0][2] # this is important line wich we apply copy number balance condition
                     if calculate_seg_length(e[0]) > 50000: # for segment less than 50 Kbp no penalty applied for tuning segment CN
                         cn_tune += e[2]
-                    objective = objective + e[0][2] - e[0][1] #updating the Objective Function
+                    print('lir',e,e[0][2],e[0][1])
+                    objective = objective + e[0][2] -e[1] #updating the Objective Function
         else:
             objective = objective + v_edges[0][0][2]
             if calculate_seg_length(v_edges[0][0]) > 50000:# for segment less than 50 Kbp no penalty applied for tuning segment CN
@@ -384,7 +387,7 @@ def estimating_edge_multiplicities_in_CC(component):
     # print('obj', objective)
     # print('Sv_sum', sv_sum)
     # objective = 10 * objective  - 9 * sv_sum + 15 * cn_tune
-    objective = 2 * objective  - 1 * sv_sum + 4 * cn_tune
+    objective = 20 * objective  - 1 * sv_sum + 4 * cn_tune
     # print('obj', objective)
     Lp_prob += objective
     print(Lp_prob)
@@ -991,12 +994,12 @@ print(g.edges)
 Plot_graph(g,file,name)
 connected_components = find_connected_components(g)
 for component in connected_components:
-    # if 29 in component:
+    if 29 in component:
         component_edges = estimating_edge_multiplicities_in_CC(component)
 connected_components = find_connected_components(g)
 paths = []
 for component in connected_components:
-    # if 29 in component:
+    if 29 in component:
         component_edges = return_all_edges_in_cc(component, g)
         print(component)
         print(component_edges)
