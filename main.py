@@ -382,7 +382,7 @@ def estimating_edge_multiplicities_in_CC(component):
                     Lp_prob += cond <= e[0][2] # this is important line wich we apply copy number balance condition
                     if calculate_seg_length(e[0]) > 50000: # for segment less than 50 Kbp no penalty applied for tuning segment CN
                         cn_tune += e[2]
-                    objective = objective + e[0][2] - e[0][1] #updating the Objective Function
+                    objective = objective + e[0][2] - e[1] #updating the Objective Function
         else:
             objective = objective + v_edges[0][0][2]
             if calculate_seg_length(v_edges[0][0]) > 50000:# for segment less than 50 Kbp no penalty applied for tuning segment CN
@@ -391,7 +391,7 @@ def estimating_edge_multiplicities_in_CC(component):
     # print('obj', objective)
     # print('Sv_sum', sv_sum)
     # objective = 10 * objective  - 9 * sv_sum + 15 * cn_tune
-    objective = 2 * objective  - 1 * sv_sum + 7 * cn_tune
+    objective = 20 * objective  - 1 * sv_sum + 4 * cn_tune
     # print('obj', objective)
     Lp_prob += objective
     print(Lp_prob)
@@ -545,6 +545,29 @@ def detect_segment_odd_degree(component, component_edges): # detect vertices wit
             ans.append(i)
     return ans
 
+def scoring_paths(path_list, segment_vertices):
+    best_score = 99999
+    best_path = ''
+    for p in path_list:
+        ans = []
+        temp = [p[0]]
+        score = 0 
+        for i in range(1,len(p)-1):
+            if p[i] in segment_vertices and p[i-1]==p[i+1]:
+                temp.append(p[i])
+                score = score + 10 * abs(check_non_centromeric_path(temp) - 1)
+                ans.append(temp)
+                temp = [p[i]]
+            else:
+                temp.append(p[i])
+        temp.append(p[-1])
+        score = score + 10 * abs(check_non_centromeric_path(temp) - 1)
+        ans.append(temp)
+        print('paths_score', score, ans)
+        if score < best_score:
+            best_score = score
+            best_path = p
+    return best_path
 
 def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts in connected components in graph g
     g2 = Graph() #create new graph g2
@@ -561,7 +584,11 @@ def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts i
     print('TOUR')
     print(segment_vertices)
     if len(odd_vertices) == 0: # Eulerian circuites exist 
-        a = printEulerUtil(g2, segment_vertices[0], -1)
+        a = []
+        for i in segment_vertices:
+            a.append(printEulerUtil(g2, i, -1))
+        a = scoring_paths(a,segment_vertices)
+        # a = printEulerUtil(g2, segment_vertices[0], -1)
     elif len(odd_vertices) == 2: # Eulerian path exists
         if odd_vertices[0] in segment_vertices: #it is better to start path finding from telomere regions
             a = printEulerUtil(g2, odd_vertices[0], -1)
@@ -576,7 +603,12 @@ def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts i
         if len(set(odd_vertices).intersection(set(segment_vertices))) == 0: #no telomere nodes with odd degree connect all of them to gether like previouse setp
             for i in range(0,len(odd_vertices),2):
                 g2.add_dummy_edges(odd_vertices[i],odd_vertices[i+1])
-            a = printEulerUtil(g2, segment_vertices[0], -1)
+            a = []  
+            for i in segment_vertices:
+                a.append(printEulerUtil(g2, i, -1))
+            a = scoring_paths(a,segment_vertices)
+            # a = printEulerUtil(g2, segment_vertices[-1], -1)#Siavash in chaneed shode
+            # a = printEulerUtil(g2, segment_vertices[0], -1)
         else:
             count = 0
             save_index = 0
@@ -595,7 +627,15 @@ def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts i
     g2.print_node()
     print('Answer',a)
     return a 
-
+def check_non_centromeric_path(p):
+    count = 0 
+    for i in range(0,len(p)-1,2):
+        u = g.return_node(p[i])
+        v = g.return_node(p[i+1])
+        if u.chromosome == v.chromosome:
+            if min(u.pos,v.pos)< min(centro['chr'+str(u.chromosome)]) and max(u.pos, v.pos)> max(centro['chr'+str(u.chromosome)]):
+                count += 1
+    return count
 def detect_del_dup_cn(chromosome, start, end): # this function detect that for a deletion or duplication, do we have CNV call as well or no
     #chromosome, start, end position of deletion call are input
     for i,s in enumerate(segments):#search in segments
