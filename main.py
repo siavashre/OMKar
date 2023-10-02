@@ -59,14 +59,13 @@ class Graph: #Class of graph
         return None
 
     def add_dummy_edges(self, u, v):#add dummy edges with type "D" between two nodes if already edge exist between them increase the CN 
-        e = self.return_edges(u, v) 
-        if max(u,v)%2 == 1 and abs(u-v) == 1: #if we need to add dummy edge between two nodes of one segment, remove it instead of adding it
-            if len(e) == 1:
+        e = self.return_edges(u, v)
+        if max(u,v)%2 == 1 and abs(u-v) == 1:
+           if len(e) == 1:
                 e = e[0]
                 cn = e[2] - 1
                 self.edges.remove(e)
                 self.edges.append((e[0], e[1], cn, e[3]))
-        #el
         elif e == None:
             self.edges.append((u, v, 1, 'D'))
             self.return_node(u).append_edges(v)
@@ -341,6 +340,7 @@ def estimating_edge_multiplicities_in_CC(component):
         e = component_edges[i]
         if e[3] != 'S': #in it is not Segment edge
             component_edges[i] = [e, p.LpVariable('X' + str(i), lowBound=0, cat=p.LpInteger)] #create an ILP variable Xi for >= 0
+            print('X' + str(i), e)
             if e[3] == 'SV':
                 if g.return_node(e[0]).chromosome != g.return_node(e[1]).chromosome: # I want to give more weight to the translocation SVs
                     Lp_prob+= component_edges[i][1] >=0 #sum in the LP_probe
@@ -354,6 +354,7 @@ def estimating_edge_multiplicities_in_CC(component):
                     Lp_prob+= component_edges[i][1] >=1
         else: #if it is Segment edge
             component_edges[i] = [e, p.LpVariable('Y' + str(i), cat=p.LpInteger),p.LpVariable('Z' + str(i), cat=p.LpInteger)] # variable Y_i is for tuning CN of each segment if we need to change the CN
+            print('Y' + str(i), e)
             # For having abselute value in ILP for we need to define variable Z as well. 
             Lp_prob += component_edges[i][2]>= -component_edges[i][1] #this is used for defining abselute value
             Lp_prob += component_edges[i][2]>= component_edges[i][1]
@@ -384,7 +385,7 @@ def estimating_edge_multiplicities_in_CC(component):
                         cn_tune += e[2]
                     objective = objective + e[0][2] - e[1] #updating the Objective Function
         else:
-            objective = objective + v_edges[0][0][2]
+            objective = objective + v_edges[0][0][2] - v_edges[0][1]
             if calculate_seg_length(v_edges[0][0]) > 50000:# for segment less than 50 Kbp no penalty applied for tuning segment CN
                 cn_tune += v_edges[0][2]
     #Just for debug
@@ -398,7 +399,6 @@ def estimating_edge_multiplicities_in_CC(component):
     status = Lp_prob.solve()
     print(p.LpStatus[status])  # The solution status
     print(Lp_prob.variables())
-    print('ali', cn_tune)
     for i in Lp_prob.variables():
         #Set edges multiplicity based on variiable values
         if i.name != '__dummy' and i.name.startswith('X'):
@@ -532,6 +532,7 @@ def detect_segment_vertices(component, edges): # this function return those node
             v.add(e[0])
             v.add(e[1])
     return sorted(list(set(component) - v))
+
 def detect_segment_odd_degree(component, component_edges): # detect vertices with odd degree
     ans = []
     d = {}
@@ -575,6 +576,9 @@ def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts i
     for v in component:
         g2.vertices.append(g.return_node(v))
     odd_vertices = []
+    print('Component', component)
+    print('Component edges', component_edges)
+
     segment_vertices = detect_segment_vertices(component, component_edges)
     odd_vertices = detect_segment_odd_degree(component, component_edges)
     print('ODD vertices', odd_vertices)
@@ -584,31 +588,32 @@ def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts i
     print('TOUR')
     print(segment_vertices)
     if len(odd_vertices) == 0: # Eulerian circuites exist 
+        # a = printEulerUtil(g2, segment_vertices[0], -1)
         a = []
         for i in segment_vertices:
             a.append(printEulerUtil(g2, i, -1))
         a = scoring_paths(a,segment_vertices)
-        # a = printEulerUtil(g2, segment_vertices[0], -1)
     elif len(odd_vertices) == 2: # Eulerian path exists
         if odd_vertices[0] in segment_vertices: #it is better to start path finding from telomere regions
             a = printEulerUtil(g2, odd_vertices[0], -1)
         elif odd_vertices[1] in segment_vertices:
             a = printEulerUtil(g2, odd_vertices[1], -1)
         else:#If not exist add a dummy edges to make it Eulerian and then find from segment vertices
-            # g2.add_dummy_edges(odd_vertices[0],odd_vertices[1])
-            g2.add_dummy_edges(segment_vertices[0],odd_vertices[0])
-            g2.add_dummy_edges(segment_vertices[-1],odd_vertices[1])
-            a = printEulerUtil(g2, segment_vertices[0], -1)
+            g2.add_dummy_edges(odd_vertices[0],odd_vertices[1])
+            # a = printEulerUtil(g2, segment_vertices[0], -1)
+            a = []
+            for i in segment_vertices:
+                a.append(printEulerUtil(g2, i, -1))
+            a = scoring_paths(a,segment_vertices)
     else: # if more than two vertices with odd degree. Connect them to each other to make the graph Eulerian 
         if len(set(odd_vertices).intersection(set(segment_vertices))) == 0: #no telomere nodes with odd degree connect all of them to gether like previouse setp
             for i in range(0,len(odd_vertices),2):
                 g2.add_dummy_edges(odd_vertices[i],odd_vertices[i+1])
-            a = []  
+            a = []
             for i in segment_vertices:
                 a.append(printEulerUtil(g2, i, -1))
             a = scoring_paths(a,segment_vertices)
-            # a = printEulerUtil(g2, segment_vertices[-1], -1)#Siavash in chaneed shode
-            # a = printEulerUtil(g2, segment_vertices[0], -1)
+            # a = printEulerUtil(g2, segment_vertices[-1], -1)#Siavash in chaneed shode 
         else:
             count = 0
             save_index = 0
@@ -627,15 +632,7 @@ def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts i
     g2.print_node()
     print('Answer',a)
     return a 
-def check_non_centromeric_path(p):
-    count = 0 
-    for i in range(0,len(p)-1,2):
-        u = g.return_node(p[i])
-        v = g.return_node(p[i+1])
-        if u.chromosome == v.chromosome:
-            if min(u.pos,v.pos)< min(centro['chr'+str(u.chromosome)]) and max(u.pos, v.pos)> max(centro['chr'+str(u.chromosome)]):
-                count += 1
-    return count
+
 def detect_del_dup_cn(chromosome, start, end): # this function detect that for a deletion or duplication, do we have CNV call as well or no
     #chromosome, start, end position of deletion call are input
     for i,s in enumerate(segments):#search in segments
@@ -645,6 +642,8 @@ def detect_del_dup_cn(chromosome, start, end): # this function detect that for a
             if overlap > 0.9 * (s.end - s.start):
                 if (end - start)< 1.2 * (s.end - s.start):
                     if (s.int_cn != segments[(i+1)%len(segments)].int_cn and s.chromosome == segments[(i+1)%len(segments)].chromosome) or (s.int_cn != segments[i-1].int_cn and s.chromosome == segments[i-1].chromosome):
+                        # print('Kir', chromosome, start, end, overlap)
+                        # print('Kir', start , end, s.start,s.end)
                         return True, s.start , s.end
             if overlap > 0.9 * (end - start):
                 if (s.end - s.start)< 1.2 * (end - start):
@@ -679,6 +678,16 @@ def detect_receprical_translocation(sv): #sometimes one of these reciprocal tran
                     return True, i
     return False, None
 
+def check_non_centromeric_path(p):
+    count = 0
+    for i in range(0,len(p)-1,2):
+        u = g.return_node(p[i])
+        v = g.return_node(p[i+1])
+        if u.chromosome == v.chromosome:
+            if (min(u.pos,v.pos)< min(centro['chr'+str(u.chromosome)]) and max(u.pos, v.pos)> min(centro['chr'+str(u.chromosome)])) or (min(u.pos,v.pos)< max(centro['chr'+str(u.chromosome)]) and max(u.pos, v.pos)> max(centro['chr'+str(u.chromosome)])):
+                count += 1
+    return count
+
 def convert_path_to_segment(p,g): # this is important function that convert Eulerion path with vertices ID to segment path. 
     component = list(set(p))
     component_edges = return_all_edges_in_cc(component, g)
@@ -686,7 +695,7 @@ def convert_path_to_segment(p,g): # this is important function that convert Eule
     ans = []
     temp = [p[0]]
     for i in range(1,len(p)-1):
-        if p[i] in segment_vertices:# and p[i-1]==p[i+1]: I believe we dont need this
+        if p[i] in segment_vertices and p[i-1]==p[i+1]:
             temp.append(p[i])
             ans.append(temp)
             temp = [p[i]]
@@ -714,30 +723,18 @@ def check_exiest_call(chromosome , start , end , type): # if we have a call like
             return True
     return False
 
-def check_overlap_centromere(start, end, chromosome):
-    start_centro = min(centro['chr'+chromosome])
-    end_centro = max(centro['chr'+chromosome])
-    centro_length = end_centro - start_centro
-    gap_length = end - start
-    intersection_length = min(end, end_centro) - max(start, start_centro)
-    if intersection_length / centro_length >.9 and intersection_length / gap_length > 0.9:
-        return  True
-    return  False
+
 def extend_segments_cn(segments):#this function check that if between two cnv call gap is less than 400Kbp and there is a call in CNV call but it marked or filtered we assume it is true and extend the segment length
     start = True
     for i in range(0 , len(segments)-1):
         s = segments[i]
         next_seg = segments[i+1]    
         if s.chromosome == next_seg.chromosome:
-            if abs(next_seg.start - s.end) < 400000 :#or check_overlap_centromere(s.end,next_seg.start, s.chromosome ):
-                # if check_exiest_call(s.chromosome, s.end, next_seg.start, s.type): # I delete this because I think it is not necessery it should not exist a call in different option
+            if abs(next_seg.start - s.end) < 400000:
+                if check_exiest_call(s.chromosome, s.end, next_seg.start, s.type):
                     s.end = next_seg.start -1
                     s.bp = [s.start , s.end]
                     segments[i] = s
-            elif check_overlap_centromere(s.end,next_seg.start, s.chromosome ):
-                s.end = next_seg.start -1
-                s.bp = [s.start , s.end]
-                segments[i] = s
     return segments
                 
 ######################################################################################################################################
@@ -750,7 +747,7 @@ parser.add_argument("-centro", "--centro", help="path to file contains centromer
 parser.add_argument("-n", "--name", help="output name", required=True)
 parser.add_argument("-o", "--output", help="path to output dir", required=True)
 args = parser.parse_args()
-segments, all_seg =parse_cnvcall(args.cnv)
+segments, all_seg = parse_cnvcall(args.cnv)
 smap = parse_smap(args.smap) 
 rcov, rcop = parse_rcmap(args.rcmap)
 chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
@@ -1003,12 +1000,12 @@ print(g.edges)
 Plot_graph(g,file,name)
 connected_components = find_connected_components(g)
 for component in connected_components:
-    # if 144 in component:
+    # if 58 in component:
         component_edges = estimating_edge_multiplicities_in_CC(component)
 connected_components = find_connected_components(g)
 paths = []
 for component in connected_components:
-    # if 144 in component:
+    # if 58 in component:
         component_edges = return_all_edges_in_cc(component, g)
         print(component)
         print(component_edges)
@@ -1030,4 +1027,3 @@ with open(output , 'w') as f :
             f.write('Path'+str(c)+ ' = '+structure+'\n')
             c+=1
     
-        
