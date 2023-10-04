@@ -305,7 +305,9 @@ def find_connected_components(g): # find connected components in a graph g
     for i in range(len(g.vertices)):
         if i not in visited:
             temp = []
-            cc.append(dfs(i, temp, g, visited))
+            a = dfs(i, temp, g, visited)
+            if len (a) > 1:
+                cc.append(a)
     return cc
 
 
@@ -326,7 +328,8 @@ def return_all_edges_in_cc(c, g): #this function return all edges in graph g whi
     return component_edges
 
 def calculate_seg_length(e): #calculate segment length of segment edge e
-    return abs (g.return_node(e[0]).pos - g.return_node(e[1]).pos)
+    l = abs (g.return_node(e[0]).pos - g.return_node(e[1]).pos)
+    return l , math.ceil(l / 5000000)
 
 
 def estimating_edge_multiplicities_in_CC(component):
@@ -359,7 +362,7 @@ def estimating_edge_multiplicities_in_CC(component):
             Lp_prob += component_edges[i][2]>= -component_edges[i][1] #this is used for defining abselute value
             Lp_prob += component_edges[i][2]>= component_edges[i][1]
             # the following if is a condition for setting the limit on how much the CN can be changed for segment with length less than 1Mbp it is one
-            if calculate_seg_length(e) <= 1000000:
+            if calculate_seg_length(e)[0] <= 1000000:
                 Lp_prob+= component_edges[i][2] <=1
             else: # for rest it is 25% of their length
                 Lp_prob += component_edges[i][2]<= math.ceil(e[2]/4)
@@ -381,18 +384,18 @@ def estimating_edge_multiplicities_in_CC(component):
                 if e[0][3] == 'S':
                     cond = cond + e[1] #summing tuning variable
                     Lp_prob += cond <= e[0][2] # this is important line wich we apply copy number balance condition
-                    if calculate_seg_length(e[0]) > 50000: # for segment less than 50 Kbp no penalty applied for tuning segment CN
-                        cn_tune += e[2]
+                    if calculate_seg_length(e[0])[0] > 50000: # for segment less than 50 Kbp no penalty applied for tuning segment CN
+                        cn_tune += e[2] * calculate_seg_length(e[0])[1]
                     objective = objective + e[0][2] - e[1] #updating the Objective Function
         else:
-            objective = objective + v_edges[0][0][2] - v_edges[0][1]
-            if calculate_seg_length(v_edges[0][0]) > 50000:# for segment less than 50 Kbp no penalty applied for tuning segment CN
-                cn_tune += v_edges[0][2]
+            objective = objective + v_edges[0][0][2]
+            if calculate_seg_length(v_edges[0][0])[0] > 50000:# for segment less than 50 Kbp no penalty applied for tuning segment CN
+                cn_tune += v_edges[0][2] * calculate_seg_length(v_edges[0][0])[1]
     #Just for debug
     # print('obj', objective)
     # print('Sv_sum', sv_sum)
     # objective = 10 * objective  - 9 * sv_sum + 15 * cn_tune
-    objective = 20 * objective  - 1 * sv_sum + 4 * cn_tune
+    objective = 20 * objective  - 9 * sv_sum + 4 * cn_tune
     # print('obj', objective)
     Lp_prob += objective
     print(Lp_prob)
@@ -695,10 +698,13 @@ def convert_path_to_segment(p,g): # this is important function that convert Eule
     ans = []
     temp = [p[0]]
     for i in range(1,len(p)-1):
-        if p[i] in segment_vertices and p[i-1]==p[i+1]:
+        if p[i] in segment_vertices:# and p[i-1]==p[i+1]:
             temp.append(p[i])
             ans.append(temp)
-            temp = [p[i]]
+            if p[i-1] == p[i+1]:
+                temp = [p[i]]
+            else:
+                temp = []
         else:
             temp.append(p[i])
     temp.append(p[-1])
@@ -754,7 +760,7 @@ chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
 chrX_cn = 2
 if chrY_cn > 0:
     chrX_cn = 1
-    chrY_cn = 1
+    # chrY_cn = 1
 xmap = parse_xmap(args.xmap)
 if args.centro is not None: # this will parse centromere region. It can be hard coded. 
     centro = parse_centro(args.centro)
@@ -1000,12 +1006,12 @@ print(g.edges)
 Plot_graph(g,file,name)
 connected_components = find_connected_components(g)
 for component in connected_components:
-    # if 58 in component:
+    # if 148 in component:
         component_edges = estimating_edge_multiplicities_in_CC(component)
 connected_components = find_connected_components(g)
 paths = []
 for component in connected_components:
-    # if 58 in component:
+    # if 148 in component:
         component_edges = return_all_edges_in_cc(component, g)
         print(component)
         print(component_edges)
