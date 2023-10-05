@@ -345,12 +345,17 @@ def estimating_edge_multiplicities_in_CC(component):
             component_edges[i] = [e, p.LpVariable('X' + str(i), lowBound=0, cat=p.LpInteger)] #create an ILP variable Xi for >= 0
             print('X' + str(i), e)
             if e[3] == 'SV':
+                sign_func = p.LpVariable('T' + str(i), cat=p.LpBinary)
+                Lp_prob+= component_edges[i][1] <= 10 * sign_func
+                Lp_prob+=  component_edges[i][1] >= sign_func
                 if g.return_node(e[0]).chromosome != g.return_node(e[1]).chromosome: # I want to give more weight to the translocation SVs
                     Lp_prob+= component_edges[i][1] >=0 #sum in the LP_probe
-                    sv_sum += 8 * component_edges[i][1] #updating sv_sum with weight of 8 of this variable
+                    # sv_sum += 8 * component_edges[i][1] #updating sv_sum with weight of 8 of this variable
+                    sv_sum += 8 * sign_func #updating sv_sum with weight of 8 of this variable
                 else:    
                     Lp_prob+= component_edges[i][1] >=0
-                    sv_sum += component_edges[i][1] 
+                    # sv_sum += component_edges[i][1]
+                    sv_sum += sign_func
             elif e[3] == 'R': #if it is reference edge we want to have another constraint if a map overlap it it should be traverse at least one so updating the constraints
                 node = g.return_node(e[0])
                 if detect_overlap_map(node.chromosome, node.pos):
@@ -768,6 +773,7 @@ else:
     centro = None
 output = args.output+'/'+ args.name + '.txt'
 file = args.output+'/'+ args.name + '.png'
+file2 = args.output+'/'+ args.name + '_2.png'
 name = args.name
 svs = []
 # for s in segments:
@@ -1006,12 +1012,13 @@ print(g.edges)
 Plot_graph(g,file,name)
 connected_components = find_connected_components(g)
 for component in connected_components:
-    # if 148 in component:
+    # if 38 in component:
         component_edges = estimating_edge_multiplicities_in_CC(component)
 connected_components = find_connected_components(g)
+Plot_graph(g,file2,name)
 paths = []
 for component in connected_components:
-    # if 148 in component:
+    # if 38 in component:
         component_edges = return_all_edges_in_cc(component, g)
         print(component)
         print(component_edges)
