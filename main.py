@@ -747,7 +747,32 @@ def extend_segments_cn(segments):#this function check that if between two cnv ca
                     s.bp = [s.start , s.end]
                     segments[i] = s
     return segments
-                
+def average_values_greater_than_a(input_dict, a):
+    total = 0
+    count = 0
+    for key, value in input_dict.items():
+        if key > a:
+            total += value
+            count += 1
+    return total / count if count > 0 else None
+
+def cn_in_mask_N_region(chromosome, start, end, cop):
+    if chromosome not in ['22','21','15','14','13']: #Andy shared this chromosome with me that Bionano CNV call in P arm is not reliable
+        return 2
+    else:
+        if chromosome == '22'and start < max(centro['chr22']) and end < max(centro['chr22']):
+                return round(average_values_greater_than_a(cop,max(centro['chr22'])))
+        if chromosome == '21'and start < max(centro['chr21']) and end < max(centro['chr21']):
+                return round(average_values_greater_than_a(cop,max(centro['chr21'])))
+        if chromosome == '15'and start < max(centro['chr15']) and end < max(centro['chr15']):
+                return round(average_values_greater_than_a(cop,max(centro['chr15'])))
+        if chromosome == '14'and start < max(centro['chr14']) and end < max(centro['chr14']):
+                return round(average_values_greater_than_a(cop,max(centro['chr14'])))
+        if chromosome == '13'and start < max(centro['chr13']) and end < max(centro['chr13']):
+                return round(average_values_greater_than_a(cop,max(centro['chr13'])))
+    return 2
+    
+
 ######################################################################################################################################
 parser = argparse.ArgumentParser()
 parser.add_argument("-cnv", "--cnv", help="path to cnv call (cnv_call_exp.txt)", required=True)
@@ -765,7 +790,6 @@ chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
 chrX_cn = 2
 if chrY_cn > 0:
     chrX_cn = 1
-    # chrY_cn = 1
 xmap = parse_xmap(args.xmap)
 if args.centro is not None: # this will parse centromere region. It can be hard coded. 
     centro = parse_centro(args.centro)
@@ -793,8 +817,8 @@ for k in rcop.keys():
         new_seg.end = list(rcop[k].keys())[-1]
         new_seg.width = list(rcop[k].keys())[-1]
         new_seg.chromosome = k
-        new_seg.fractional_cn = 2
-        new_seg.int_cn = 2 #assumption that sample is diploide. default CN = 2
+        new_seg.fractional_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k])
+        new_seg.int_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k]) #assumption that sample is diploide. default CN = 2
         if int(k) == 23:
             new_seg.fractional_cn = chrX_cn
             new_seg.int_cn = chrX_cn
@@ -813,8 +837,8 @@ for k in rcop.keys():
                 new_seg.end = end
                 new_seg.width = end - start
                 new_seg.chromosome = k
-                new_seg.fractional_cn = 2
-                new_seg.int_cn = 2 #assumption that sample is diploide. default CN = 2
+                new_seg.fractional_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k])
+                new_seg.int_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k]) #assumption that sample is diploide. default CN = 2
                 if int(k) == 23:
                     new_seg.fractional_cn = chrX_cn
                     new_seg.int_cn = chrX_cn
@@ -831,8 +855,8 @@ for k in rcop.keys():
             new_seg.end = end
             new_seg.width = end - start
             new_seg.chromosome = k
-            new_seg.fractional_cn = 2
-            new_seg.int_cn = 2
+            new_seg.fractional_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k])
+            new_seg.int_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k])
             if int(k) == 23:
                 new_seg.fractional_cn = chrX_cn
                 new_seg.int_cn = chrX_cn
