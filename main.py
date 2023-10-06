@@ -191,7 +191,7 @@ def detect_overlap_map(chromosome, pos): # this function detect if there is a ma
     for xmapid in xmap.keys():
         x = xmap[xmapid]
         if int(chromosome) == int(x['RefContigID']):
-            if  x['RefStartPos'] <=float(pos)<= x['RefEndPos']:
+            if  x['RefStartPos'] <=float(pos) - 25000<= x['RefEndPos'] and x['RefStartPos'] <=float(pos) + 25000<= x['RefEndPos']:
                 return True
     return False
 
@@ -771,7 +771,22 @@ def cn_in_mask_N_region(chromosome, start, end, cop):
         if chromosome == '13'and start < max(centro['chr13']) and end < max(centro['chr13']):
                 return round(average_values_greater_than_a(cop,max(centro['chr13'])))
     return 2
-    
+def merge_segments_all_seg_smap(segments, all_seg, smap):
+    ans = []
+    limit = 30000
+    for sv in smap:
+        if sv.sv_type == 'deletion':
+            for s in all_seg:
+                if sv.ref_c_id1 == s.chromosome and s.type.startswith('loss'):
+                    if abs(s.start - min(sv.ref_start, sv.ref_end)) < limit and abs(s.end - max(sv.ref_start, sv.ref_end)):
+                        ans.append(s)
+    for s in ans:
+        if s not in segments:
+            segments.append(s)
+    return segments
+
+
+
 
 ######################################################################################################################################
 parser = argparse.ArgumentParser()
@@ -784,10 +799,13 @@ parser.add_argument("-n", "--name", help="output name", required=True)
 parser.add_argument("-o", "--output", help="path to output dir", required=True)
 args = parser.parse_args()
 segments, all_seg = parse_cnvcall(args.cnv)
-smap = parse_smap(args.smap) 
+smap = parse_smap(args.smap)
+# segments = merge_segments_all_seg_smap(segments, all_seg, smap)
+segments.sort(key=lambda x: (int(x.chromosome), x.start))
 rcov, rcop = parse_rcmap(args.rcmap)
 chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
-chrX_cn = 2
+# chrX_cn = 2
+chrX_cn = round(np.average(list(rcop['23'].values())))
 if chrY_cn > 0:
     chrX_cn = 1
 xmap = parse_xmap(args.xmap)
@@ -1036,13 +1054,13 @@ print(g.edges)
 Plot_graph(g,file,name)
 connected_components = find_connected_components(g)
 for component in connected_components:
-    # if 38 in component:
+    # if 126 in component:
         component_edges = estimating_edge_multiplicities_in_CC(component)
 connected_components = find_connected_components(g)
 Plot_graph(g,file2,name)
 paths = []
 for component in connected_components:
-    # if 38 in component:
+    # if 126 in component:
         component_edges = return_all_edges_in_cc(component, g)
         print(component)
         print(component_edges)
