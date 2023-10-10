@@ -121,7 +121,7 @@ def parse_cnvcall(cnvcall):
                 segment.conf = float(fD['Confidence'])
                 segment.line = line
                 segment.bp = [segment.start, segment.end]
-                if segment.width > 200000  and not segment.type.endswith('masked') and segment.conf>= 0.99: #Apply filters on CNV call masked region and segments legnth 200000bp is a limit of filtering segments
+                if segment.width > 200000  and not segment.type.endswith('masked') and segment.conf>= 0.95: #Apply filters on CNV call masked region and segments legnth 200000bp is a limit of filtering segments
                     if segment.width < 500000:
                         if len(segment_list) == 0:
                             segment_list.append(segment)
