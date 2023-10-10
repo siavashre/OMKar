@@ -62,10 +62,15 @@ class Graph: #Class of graph
         e = self.return_edges(u, v)
         if max(u,v)%2 == 1 and abs(u-v) == 1:
            if len(e) == 1:
-                e = e[0]
-                cn = e[2] - 1
-                self.edges.remove(e)
-                self.edges.append((e[0], e[1], cn, e[3]))
+               # if e[0][2] == 2:
+               #      e = e[0]
+               #      cn = e[2] - 1
+               #      self.edges.remove(e)
+               #      self.edges.append((e[0], e[1], cn, e[3]))
+               # else:
+                    self.edges.append((u, v, 1, 'D'))
+                    self.return_node(u).append_edges(v)
+                    self.return_node(v).append_edges(u)
         elif e == None:
             self.edges.append((u, v, 1, 'D'))
             self.return_node(u).append_edges(v)
@@ -390,17 +395,23 @@ def estimating_edge_multiplicities_in_CC(component):
                     cond = cond + e[1] #summing tuning variable
                     Lp_prob += cond <= e[0][2] # this is important line wich we apply copy number balance condition
                     if calculate_seg_length(e[0])[0] > 50000: # for segment less than 50 Kbp no penalty applied for tuning segment CN
-                        cn_tune += e[2] * calculate_seg_length(e[0])[1]
+                        if e[0][2]!=2:
+                            cn_tune += e[2] * calculate_seg_length(e[0])[1] * 3 #more coeeficient for something has called already
+                        else:
+                            cn_tune += e[2] * calculate_seg_length(e[0])[1]
                     objective = objective + e[0][2] - e[1] #updating the Objective Function
         else:
             objective = objective + v_edges[0][0][2]
             if calculate_seg_length(v_edges[0][0])[0] > 50000:# for segment less than 50 Kbp no penalty applied for tuning segment CN
-                cn_tune += v_edges[0][2] * calculate_seg_length(v_edges[0][0])[1]
+                if v_edges[0][2]!=2:
+                    cn_tune += v_edges[0][2] * calculate_seg_length(v_edges[0][0])[1] * 3
+                else:
+                    cn_tune += v_edges[0][2] * calculate_seg_length(v_edges[0][0])[1]
     #Just for debug
     # print('obj', objective)
     # print('Sv_sum', sv_sum)
     # objective = 10 * objective  - 9 * sv_sum + 15 * cn_tune
-    objective = 20 * objective  - 9 * sv_sum + 4 * cn_tune
+    objective = 5 * objective  - 9 * sv_sum + 4 * cn_tune
     # print('obj', objective)
     Lp_prob += objective
     print(Lp_prob)
@@ -771,15 +782,19 @@ def cn_in_mask_N_region(chromosome, start, end, cop):
         if chromosome == '13'and start < max(centro['chr13']) and end < max(centro['chr13']):
                 return round(average_values_greater_than_a(cop,max(centro['chr13'])))
     return 2
+def is_overlapping(start1, end1, start2, end2):
+    return start1 <= end2 and start2 <= end1
 def merge_segments_all_seg_smap(segments, all_seg, smap):
     ans = []
-    limit = 30000
+    limit = 50000
     for sv in smap:
-        if sv.sv_type == 'deletion':
+        if sv.sv_type == 'deletion':# and sv.ref_c_id1=='17':# and sv.ref_start > 20400000 and sv.ref_start < 21000000:
+            a= 0
             for s in all_seg:
-                if sv.ref_c_id1 == s.chromosome and s.type.startswith('loss'):
-                    if abs(s.start - min(sv.ref_start, sv.ref_end)) < limit and abs(s.end - max(sv.ref_start, sv.ref_end)):
-                        ans.append(s)
+                if sv.ref_c_id1 == s.chromosome and s.type.startswith('loss') and s.width> 2 * limit:
+                    if abs(s.start - min(sv.ref_start, sv.ref_end)) < limit and abs(s.end - max(sv.ref_start, sv.ref_end)) < limit:
+                        if not is_overlapping(min(centro['chr'+str(sv.ref_c_id1)]), max(centro['chr'+str(sv.ref_c_id1)]),sv.ref_start, sv.ref_end):
+                            ans.append(s)
     for s in ans:
         if s not in segments:
             segments.append(s)
@@ -798,9 +813,13 @@ parser.add_argument("-centro", "--centro", help="path to file contains centromer
 parser.add_argument("-n", "--name", help="output name", required=True)
 parser.add_argument("-o", "--output", help="path to output dir", required=True)
 args = parser.parse_args()
+if args.centro is not None: # this will parse centromere region. It can be hard coded.
+    centro = parse_centro(args.centro)
+else:
+    centro = None
 segments, all_seg = parse_cnvcall(args.cnv)
 smap = parse_smap(args.smap)
-# segments = merge_segments_all_seg_smap(segments, all_seg, smap)
+segments = merge_segments_all_seg_smap(segments, all_seg, smap) # Need to debug this function
 segments.sort(key=lambda x: (int(x.chromosome), x.start))
 rcov, rcop = parse_rcmap(args.rcmap)
 chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
@@ -809,10 +828,6 @@ chrX_cn = round(np.average(list(rcop['23'].values())))
 if chrY_cn > 0:
     chrX_cn = 1
 xmap = parse_xmap(args.xmap)
-if args.centro is not None: # this will parse centromere region. It can be hard coded. 
-    centro = parse_centro(args.centro)
-else:
-    centro = None
 output = args.output+'/'+ args.name + '.txt'
 file = args.output+'/'+ args.name + '.png'
 file2 = args.output+'/'+ args.name + '_2.png'
@@ -890,7 +905,7 @@ segments.sort(key=lambda x: (int(x.chromosome), x.start))
 for i in smap:
     # translocation applied filters. 
     if i.sv_type.startswith('trans') and i.confidence >= 0.05 and not i.sv_type.endswith(
-            'segdupe') and not i.sv_type.endswith('common') and not i.sv_type.endswith('oveerlap'):
+            'segdupe') and not i.sv_type.endswith('common') and not i.sv_type.endswith('oveerlap') and (i.ref_c_id1!= i.ref_c_id2 or abs(i.ref_end - i.ref_start) > 300000):
         svs.append(i)
         exist,s = detect_receprical_translocation(i)
         if exist:
@@ -944,9 +959,14 @@ for i in smap:
             i.ref_end = fold_point
             svs.append(i)
             print(i.line.strip())
-    elif i.sv_type == 'duplication' or i.sv_type == 'duplication_split':
+    elif i.sv_type == 'duplication':# or i.sv_type == 'duplication_split':
         if detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)[0]:
             _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)
+            svs.append(i)
+            print(i.line.strip())
+    elif i.sv_type == 'duplication_split': #This maybe deleted, and get back to duplocation_split
+        # if detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)[0]:
+        #     _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)
             svs.append(i)
             print(i.line.strip())
     elif i.size > 500000 and not i.sv_type.startswith('inversion'): #Other type of SV
@@ -1050,17 +1070,18 @@ for sv in svs:
         g.return_node(b).append_edges(a)
     # g.edges.append((b,a,0,'SV'))
 g.print_node()
+print('Siavash')
 print(g.edges)
 Plot_graph(g,file,name)
 connected_components = find_connected_components(g)
 for component in connected_components:
-    # if 126 in component:
+    if 6 in component:
         component_edges = estimating_edge_multiplicities_in_CC(component)
 connected_components = find_connected_components(g)
 Plot_graph(g,file2,name)
 paths = []
 for component in connected_components:
-    # if 126 in component:
+    if 6 in component:
         component_edges = return_all_edges_in_cc(component, g)
         print(component)
         print(component_edges)
