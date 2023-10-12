@@ -1075,13 +1075,13 @@ print(g.edges)
 Plot_graph(g,file,name)
 connected_components = find_connected_components(g)
 for component in connected_components:
-    if 6 in component:
+    if 16 in component:
         component_edges = estimating_edge_multiplicities_in_CC(component)
 connected_components = find_connected_components(g)
 Plot_graph(g,file2,name)
 paths = []
 for component in connected_components:
-    if 6 in component:
+    if 16 in component:
         component_edges = return_all_edges_in_cc(component, g)
         print(component)
         print(component_edges)
