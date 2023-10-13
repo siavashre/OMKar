@@ -122,13 +122,14 @@ def parse_cnvcall(cnvcall):
                 segment.line = line
                 segment.bp = [segment.start, segment.end]
                 if segment.width > 200000  and not segment.type.endswith('masked') and segment.conf>= 0.95: #Apply filters on CNV call masked region and segments legnth 200000bp is a limit of filtering segments
-                    if segment.width < 500000:
-                        if len(segment_list) == 0:
-                            segment_list.append(segment)
-                        elif segment.int_cn >= segment_list[-1].int_cn: #If segment length is between 200 and 500 Kbp. if the CN is great than previouse segment length will add it( this prevent having small deletions between 200 and 500 Kbp)
-                            segment_list.append(segment)
-                    else:# if segment length is greater than 500Kbp add it. 
-                        segment_list.append(segment)
+                    # if segment.width < 500000:
+                    #     if len(segment_list) == 0:
+                    #         segment_list.append(segment)
+                    #     elif segment.int_cn >= segment_list[-1].int_cn: #If segment length is between 200 and 500 Kbp. if the CN is great than previouse segment length will add it( this prevent having small deletions between 200 and 500 Kbp)
+                    #         segment_list.append(segment)
+                    # else:# if segment length is greater than 500Kbp add it.
+                    #     segment_list.append(segment)
+                    segment_list.append(segment)
                 all_seg.append(segment)
     return segment_list, all_seg #return two lists of segment class. one the filtered one and one all of them. 
 
