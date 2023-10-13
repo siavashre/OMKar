@@ -833,8 +833,6 @@ file = args.output+'/'+ args.name + '.png'
 file2 = args.output+'/'+ args.name + '_2.png'
 name = args.name
 svs = []
-# for s in segments:
-#         print(s.chromosome, s.start, s.end, s.int_cn)
 segments = extend_segments_cn(segments) #fill the gap between calls. 
 for k in rcop.keys():
     seg_list = []
