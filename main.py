@@ -785,6 +785,7 @@ def cn_in_mask_N_region(chromosome, start, end, cop, centro):
 
 def is_overlapping(start1, end1, start2, end2):
     return start1 <= end2 and start2 <= end1
+
 def merge_segments_all_seg_smap(segments, all_seg, smap):
     ans = []
     limit = 50000
@@ -800,9 +801,6 @@ def merge_segments_all_seg_smap(segments, all_seg, smap):
         if s not in segments:
             segments.append(s)
     return segments
-
-
-
 
 ######################################################################################################################################
 def main():
@@ -835,8 +833,47 @@ def main():
     file2 = args.output+'/'+ args.name + '_2.png'
     name = args.name
     svs = []
-    # for s in segments:
-    #         print(s.chromosome, s.start, s.end, s.int_cn)
+    segments = extend_segments_cn(segments) #fill the gap between calls. 
+    for k in rcop.keys():
+        seg_list = []
+        label_list = list(rcop[k].keys())
+        for s in segments:
+            if s.chromosome == k:
+                if s.width > 200000: #if call has length greater than 200Kbp assume a segment
+                    seg_list.append(s)
+        prev_point = list(rcop[k].keys())[0]
+        if len(seg_list) == 0: #create segment for start of chromosme
+            new_seg = Segments()
+            new_seg.start = 0
+            new_seg.end = list(rcop[k].keys())[-1]
+            new_seg.width = list(rcop[k].keys())[-1]
+            new_seg.chromosome = k
+            new_seg.fractional_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k],centro)
+            new_seg.int_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k],centro) #assumption that sample is diploide. default CN = 2
+            if int(k) == 23:
+                new_seg.fractional_cn = chrX_cn
+                new_seg.int_cn = chrX_cn
+            if int(k) == 24:
+                new_seg.fractional_cn = chrY_cn
+                new_seg.int_cn = chrY_cn
+            new_seg.bp = [0, list(rcop[k].keys())[-1]]
+            segments.append(new_seg)
+    segments, all_seg = parse_cnvcall(args.cnv)
+    smap = parse_smap(args.smap)
+    segments = merge_segments_all_seg_smap(segments, all_seg, smap) # Need to debug this function
+    segments.sort(key=lambda x: (int(x.chromosome), x.start))
+    rcov, rcop = parse_rcmap(args.rcmap)
+    chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
+    # chrX_cn = 2
+    chrX_cn = round(np.average(list(rcop['23'].values())))
+    if chrY_cn > 0:
+        chrX_cn = 1
+    xmap = parse_xmap(args.xmap)
+    output = args.output+'/'+ args.name + '.txt'
+    file = args.output+'/'+ args.name + '.png'
+    file2 = args.output+'/'+ args.name + '_2.png'
+    name = args.name
+    svs = []
     segments = extend_segments_cn(segments) #fill the gap between calls. 
     for k in rcop.keys():
         seg_list = []
@@ -1083,11 +1120,10 @@ def main():
     Plot_graph(g,file2,name,centro)
     paths = []
     for component in connected_components:
-        if 6 in component:
-            component_edges = return_all_edges_in_cc(component, g)
-            print(component)
-            print(component_edges)
-            paths.append(printEulerTour(component, component_edges, g, centro))
+        component_edges = return_all_edges_in_cc(component, g)
+        print(component)
+        print(component_edges)
+        paths.append(printEulerTour(component, component_edges, g, centro))
     # print(paths)
     #write in the output
     with open(output , 'w') as f :
