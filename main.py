@@ -96,7 +96,7 @@ class Graph: #Class of graph
                     self.edges.append((e[0], e[1], count, e[3]))
 
 
-def find_bp_in_segment(chromosome, point): #this function get chromosome and position as input(from sv call) and add this point to segment bp list. It helps us to then spliting segments to new one.
+def find_bp_in_segment(chromosome, point, segments): #this function get chromosome and position as input(from sv call) and add this point to segment bp list. It helps us to then spliting segments to new one.
     for i in segments:
         if str(i.chromosome) == str(chromosome):
             if i.start <= point <= i.end:
@@ -125,7 +125,7 @@ def merge_list(l): # this function merge all breakpoints in a segment within a w
     return ans
 
 ######################### DOUBLE CHECK THIS FUNCTION ######################################
-def detect_sv_directions(sv): #this function detect the direction of one smap like H/T to H/T. #need to be check Contain bug?
+def detect_sv_directions(sv, xmap): #this function detect the direction of one smap like H/T to H/T. #need to be check Contain bug?
     if sv.sv_type == 'inversion_paired': # for inversion_paired always return T to T
         return 'T', 'T'
     dir1, dir2 = '', ''
@@ -191,7 +191,7 @@ def next_prev_label(chromosome, pos): #not used can be deleted
                     return label_list[index - 1], label_list[(index + 1) % (len(label_list))]
 
 
-def detect_overlap_map(chromosome, pos): # this function detect if there is a map(alignment that overlap this region)
+def detect_overlap_map(chromosome, pos, xmap): # this function detect if there is a map(alignment that overlap this region)
     # maybe it is good idea instead of 1bp assume a window here.
     for xmapid in xmap.keys():
         x = xmap[xmapid]
@@ -200,7 +200,7 @@ def detect_overlap_map(chromosome, pos): # this function detect if there is a ma
                 return True
     return False
 
-def Plot_graph(g, file, name): #this function plot the graph
+def Plot_graph(g, file, name, centro): #this function plot the graph
     vertices = g.vertices
     fig = plt.figure(figsize=(20, 25))
     plt.title(name)
@@ -288,7 +288,7 @@ def Plot_graph(g, file, name): #this function plot the graph
     plt.savefig(file, dpi=200)
 
 
-def find_in_smap(id): # return a smap call with the iD otherwise return None
+def find_in_smap(id, smap): # return a smap call with the iD otherwise return None
     for s in smap:
         if s.smap_id == id:
             return s
@@ -332,12 +332,12 @@ def return_all_edges_in_cc(c, g): #this function return all edges in graph g whi
                 component_edges.append(e)
     return component_edges
 
-def calculate_seg_length(e): #calculate segment length of segment edge e
+def calculate_seg_length(e, g): #calculate segment length of segment edge e
     l = abs (g.return_node(e[0]).pos - g.return_node(e[1]).pos)
     return l , math.ceil(l / 5000000)
 
 
-def estimating_edge_multiplicities_in_CC(component):
+def estimating_edge_multiplicities_in_CC(component, g, xmap):
     Lp_prob = p.LpProblem('Problem', p.LpMinimize) # this line initiate the ILP problem
     objective = 0 # variable for some of our objective
     sv_sum = 0 # sum all variables for SV edges
@@ -363,7 +363,7 @@ def estimating_edge_multiplicities_in_CC(component):
                     sv_sum += sign_func
             elif e[3] == 'R': #if it is reference edge we want to have another constraint if a map overlap it it should be traverse at least one so updating the constraints
                 node = g.return_node(e[0])
-                if detect_overlap_map(node.chromosome, node.pos):
+                if detect_overlap_map(node.chromosome, node.pos, xmap):
                     Lp_prob+= component_edges[i][1] >=1
         else: #if it is Segment edge
             component_edges[i] = [e, p.LpVariable('Y' + str(i), cat=p.LpInteger),p.LpVariable('Z' + str(i), cat=p.LpInteger)] # variable Y_i is for tuning CN of each segment if we need to change the CN
@@ -372,7 +372,7 @@ def estimating_edge_multiplicities_in_CC(component):
             Lp_prob += component_edges[i][2]>= -component_edges[i][1] #this is used for defining abselute value
             Lp_prob += component_edges[i][2]>= component_edges[i][1]
             # the following if is a condition for setting the limit on how much the CN can be changed for segment with length less than 1Mbp it is one
-            if calculate_seg_length(e)[0] <= 1000000:
+            if calculate_seg_length(e, g)[0] <= 1000000:
                 Lp_prob+= component_edges[i][2] <=1
             else: # for rest it is 25% of their length
                 Lp_prob += component_edges[i][2]<= math.ceil(e[2]/4)
@@ -394,19 +394,19 @@ def estimating_edge_multiplicities_in_CC(component):
                 if e[0][3] == 'S':
                     cond = cond + e[1] #summing tuning variable
                     Lp_prob += cond <= e[0][2] # this is important line wich we apply copy number balance condition
-                    if calculate_seg_length(e[0])[0] > 50000: # for segment less than 50 Kbp no penalty applied for tuning segment CN
+                    if calculate_seg_length(e[0], g)[0] > 50000: # for segment less than 50 Kbp no penalty applied for tuning segment CN
                         if e[0][2]!=2:
-                            cn_tune += e[2] * calculate_seg_length(e[0])[1] * 3 #more coeeficient for something has called already
+                            cn_tune += e[2] * calculate_seg_length(e[0], g)[1] * 3 #more coeeficient for something has called already
                         else:
-                            cn_tune += e[2] * calculate_seg_length(e[0])[1]
+                            cn_tune += e[2] * calculate_seg_length(e[0], g)[1]
                     objective = objective + e[0][2] - e[1] #updating the Objective Function
         else:
             objective = objective + v_edges[0][0][2]
-            if calculate_seg_length(v_edges[0][0])[0] > 50000:# for segment less than 50 Kbp no penalty applied for tuning segment CN
+            if calculate_seg_length(v_edges[0][0], g)[0] > 50000:# for segment less than 50 Kbp no penalty applied for tuning segment CN
                 if v_edges[0][2]!=2:
-                    cn_tune += v_edges[0][2] * calculate_seg_length(v_edges[0][0])[1] * 3
+                    cn_tune += v_edges[0][2] * calculate_seg_length(v_edges[0][0], g)[1] * 3
                 else:
-                    cn_tune += v_edges[0][2] * calculate_seg_length(v_edges[0][0])[1]
+                    cn_tune += v_edges[0][2] * calculate_seg_length(v_edges[0][0], g)[1]
     #Just for debug
     # print('obj', objective)
     # print('Sv_sum', sv_sum)
@@ -565,7 +565,7 @@ def detect_segment_odd_degree(component, component_edges): # detect vertices wit
             ans.append(i)
     return ans
 
-def scoring_paths(path_list, segment_vertices):
+def scoring_paths(path_list, segment_vertices, g, centro):
     best_score = 99999
     best_path = ''
     for p in path_list:
@@ -575,13 +575,13 @@ def scoring_paths(path_list, segment_vertices):
         for i in range(1,len(p)-1):
             if p[i] in segment_vertices and p[i-1]==p[i+1]:
                 temp.append(p[i])
-                score = score + 10 * abs(check_non_centromeric_path(temp) - 1)
+                score = score + 10 * abs(check_non_centromeric_path(temp, g, centro) - 1)
                 ans.append(temp)
                 temp = [p[i]]
             else:
                 temp.append(p[i])
         temp.append(p[-1])
-        score = score + 10 * abs(check_non_centromeric_path(temp) - 1)
+        score = score + 10 * abs(check_non_centromeric_path(temp, g, centro) - 1)
         ans.append(temp)
         print('paths_score', score, ans)
         if score < best_score:
@@ -589,7 +589,7 @@ def scoring_paths(path_list, segment_vertices):
             best_path = p
     return best_path
 
-def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts in connected components in graph g
+def printEulerTour(component, component_edges, g, centro): #Find Eulerian path/circuts in connected components in graph g
     g2 = Graph() #create new graph g2
     g2.edges = component_edges
     for v in component:
@@ -611,7 +611,7 @@ def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts i
         a = []
         for i in segment_vertices:
             a.append(printEulerUtil(g2, i, -1))
-        a = scoring_paths(a,segment_vertices)
+        a = scoring_paths(a,segment_vertices,g,centro)
     elif len(odd_vertices) == 2: # Eulerian path exists
         if odd_vertices[0] in segment_vertices: #it is better to start path finding from telomere regions
             a = printEulerUtil(g2, odd_vertices[0], -1)
@@ -623,7 +623,7 @@ def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts i
             a = []
             for i in segment_vertices:
                 a.append(printEulerUtil(g2, i, -1))
-            a = scoring_paths(a,segment_vertices)
+            a = scoring_paths(a,segment_vertices,g,centro)
     else: # if more than two vertices with odd degree. Connect them to each other to make the graph Eulerian 
         if len(set(odd_vertices).intersection(set(segment_vertices))) == 0: #no telomere nodes with odd degree connect all of them to gether like previouse setp
             for i in range(0,len(odd_vertices),2):
@@ -631,7 +631,7 @@ def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts i
             a = []
             for i in segment_vertices:
                 a.append(printEulerUtil(g2, i, -1))
-            a = scoring_paths(a,segment_vertices)
+            a = scoring_paths(a,segment_vertices,g,centro)
             # a = printEulerUtil(g2, segment_vertices[-1], -1)#Siavash in chaneed shode 
         else:
             count = 0
@@ -652,7 +652,7 @@ def printEulerTour(component, component_edges, g): #Find Eulerian path/circuts i
     print('Answer',a)
     return a 
 
-def detect_del_dup_cn(chromosome, start, end): # this function detect that for a deletion or duplication, do we have CNV call as well or no
+def detect_del_dup_cn(chromosome, start, end, segments): # this function detect that for a deletion or duplication, do we have CNV call as well or no
     #chromosome, start, end position of deletion call are input
     for i,s in enumerate(segments):#search in segments
         if int(s.chromosome) == int(chromosome):
@@ -670,9 +670,9 @@ def detect_del_dup_cn(chromosome, start, end): # this function detect that for a
                         return True, s.start , s.end
     return False, None, None
 
-def detect_duplicatioon_inversion_cn(sv): # same as above for duplication calls. 
+def detect_duplicatioon_inversion_cn(sv, xmap, segments): # same as above for duplication calls. 
     window_lim = 50000
-    node_dir1 , node_dir2 = detect_sv_directions(sv)
+    node_dir1 , node_dir2 = detect_sv_directions(sv, xmap)
     if node_dir1 == 'T' and node_dir2 == 'T': #right fold back
         for i,s in enumerate(segments):
             if int(s.chromosome) == int(sv.ref_c_id1): #only compared with the next contigs
@@ -686,18 +686,18 @@ def detect_duplicatioon_inversion_cn(sv): # same as above for duplication calls.
     return False, None
 
 
-def detect_receprical_translocation(sv): #sometimes one of these reciprocal translocation have low confidence but this function we retrive it 
+def detect_receprical_translocation(sv, xmap, smap): #sometimes one of these reciprocal translocation have low confidence but this function we retrive it 
     window_lim = 200000
     for i in smap:
         if i.ref_c_id1 == sv.ref_c_id1 and i.ref_c_id2 == sv.ref_c_id2 and sv.smap_id != i.smap_id:
             if abs(i.ref_start - sv.ref_start) < window_lim and abs(i.ref_end - sv.ref_end) < window_lim:
-                i_dir1, i_dir2 = detect_sv_directions(i)
-                sv_dir1, sv_dir2 = detect_sv_directions(sv)
+                i_dir1, i_dir2 = detect_sv_directions(i, xmap)
+                sv_dir1, sv_dir2 = detect_sv_directions(sv, xmap)
                 if i_dir1 != sv_dir1 and i_dir2 != sv_dir2:
                     return True, i
     return False, None
 
-def check_non_centromeric_path(p):
+def check_non_centromeric_path(p, g, centro):
     count = 0
     for i in range(0,len(p)-1,2):
         u = g.return_node(p[i])
@@ -767,7 +767,7 @@ def average_values_greater_than_a(input_dict, a):
             count += 1
     return total / count if count > 0 else None
 
-def cn_in_mask_N_region(chromosome, start, end, cop):
+def cn_in_mask_N_region(chromosome, start, end, cop, centro):
     if chromosome not in ['22','21','15','14','13']: #Andy shared this chromosome with me that Bionano CNV call in P arm is not reliable
         return 2
     else:
@@ -782,6 +782,7 @@ def cn_in_mask_N_region(chromosome, start, end, cop):
         if chromosome == '13'and start < max(centro['chr13']) and end < max(centro['chr13']):
                 return round(average_values_greater_than_a(cop,max(centro['chr13'])))
     return 2
+
 def is_overlapping(start1, end1, start2, end2):
     return start1 <= end2 and start2 <= end1
 def merge_segments_all_seg_smap(segments, all_seg, smap):
@@ -804,74 +805,93 @@ def merge_segments_all_seg_smap(segments, all_seg, smap):
 
 
 ######################################################################################################################################
-parser = argparse.ArgumentParser()
-parser.add_argument("-cnv", "--cnv", help="path to cnv call (cnv_call_exp.txt)", required=True)
-parser.add_argument("-smap", "--smap", help="path to smap file", required=True)
-parser.add_argument("-rcmap", "--rcmap", help="path to CNV rcmap file (cnv_rcmap_exp.txt)", required=True)
-parser.add_argument("-xmap", "--xmap", help="path to contig alignments file xmap", required=True)
-parser.add_argument("-centro", "--centro", help="path to file contains centromere coordinates", required=False)
-parser.add_argument("-n", "--name", help="output name", required=True)
-parser.add_argument("-o", "--output", help="path to output dir", required=True)
-args = parser.parse_args()
-if args.centro is not None: # this will parse centromere region. It can be hard coded.
-    centro = parse_centro(args.centro)
-else:
-    centro = None
-segments, all_seg = parse_cnvcall(args.cnv)
-smap = parse_smap(args.smap)
-segments = merge_segments_all_seg_smap(segments, all_seg, smap) # Need to debug this function
-segments.sort(key=lambda x: (int(x.chromosome), x.start))
-rcov, rcop = parse_rcmap(args.rcmap)
-chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
-# chrX_cn = 2
-chrX_cn = round(np.average(list(rcop['23'].values())))
-if chrY_cn > 0:
-    chrX_cn = 1
-xmap = parse_xmap(args.xmap)
-output = args.output+'/'+ args.name + '.txt'
-file = args.output+'/'+ args.name + '.png'
-file2 = args.output+'/'+ args.name + '_2.png'
-name = args.name
-svs = []
-# for s in segments:
-#         print(s.chromosome, s.start, s.end, s.int_cn)
-segments = extend_segments_cn(segments) #fill the gap between calls. 
-for k in rcop.keys():
-    seg_list = []
-    label_list = list(rcop[k].keys())
-    for s in segments:
-        if s.chromosome == k:
-            if s.width > 200000: #if call has length greater than 200Kbp assume a segment
-                seg_list.append(s)
-    prev_point = list(rcop[k].keys())[0]
-    if len(seg_list) == 0: #create segment for start of chromosme
-        new_seg = Segments()
-        new_seg.start = 0
-        new_seg.end = list(rcop[k].keys())[-1]
-        new_seg.width = list(rcop[k].keys())[-1]
-        new_seg.chromosome = k
-        new_seg.fractional_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k])
-        new_seg.int_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k]) #assumption that sample is diploide. default CN = 2
-        if int(k) == 23:
-            new_seg.fractional_cn = chrX_cn
-            new_seg.int_cn = chrX_cn
-        if int(k) == 24:
-            new_seg.fractional_cn = chrY_cn
-            new_seg.int_cn = chrY_cn
-        new_seg.bp = [0, list(rcop[k].keys())[-1]]
-        segments.append(new_seg)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-cnv", "--cnv", help="path to cnv call (cnv_call_exp.txt)", required=True)
+    parser.add_argument("-smap", "--smap", help="path to smap file", required=True)
+    parser.add_argument("-rcmap", "--rcmap", help="path to CNV rcmap file (cnv_rcmap_exp.txt)", required=True)
+    parser.add_argument("-xmap", "--xmap", help="path to contig alignments file xmap", required=True)
+    parser.add_argument("-centro", "--centro", help="path to file contains centromere coordinates", required=False)
+    parser.add_argument("-n", "--name", help="output name", required=True)
+    parser.add_argument("-o", "--output", help="path to output dir", required=True)
+    args = parser.parse_args()
+    if args.centro is not None: # this will parse centromere region. It can be hard coded.
+        centro = parse_centro(args.centro)
     else:
-        seg_list.sort(key=lambda x: x.start)
-        for s in seg_list:
-            start, end = find_start_end(prev_point, s.start, label_list) # there are labels between two segments then create segment with CN =2 between them
-            if start != 0 and end != 0: #
+        centro = None
+    segments, all_seg = parse_cnvcall(args.cnv)
+    smap = parse_smap(args.smap)
+    segments = merge_segments_all_seg_smap(segments, all_seg, smap) # Need to debug this function
+    segments.sort(key=lambda x: (int(x.chromosome), x.start))
+    rcov, rcop = parse_rcmap(args.rcmap)
+    chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
+    # chrX_cn = 2
+    chrX_cn = round(np.average(list(rcop['23'].values())))
+    if chrY_cn > 0:
+        chrX_cn = 1
+    xmap = parse_xmap(args.xmap)
+    output = args.output+'/'+ args.name + '.txt'
+    file = args.output+'/'+ args.name + '.png'
+    file2 = args.output+'/'+ args.name + '_2.png'
+    name = args.name
+    svs = []
+    # for s in segments:
+    #         print(s.chromosome, s.start, s.end, s.int_cn)
+    segments = extend_segments_cn(segments) #fill the gap between calls. 
+    for k in rcop.keys():
+        seg_list = []
+        label_list = list(rcop[k].keys())
+        for s in segments:
+            if s.chromosome == k:
+                if s.width > 200000: #if call has length greater than 200Kbp assume a segment
+                    seg_list.append(s)
+        prev_point = list(rcop[k].keys())[0]
+        if len(seg_list) == 0: #create segment for start of chromosme
+            new_seg = Segments()
+            new_seg.start = 0
+            new_seg.end = list(rcop[k].keys())[-1]
+            new_seg.width = list(rcop[k].keys())[-1]
+            new_seg.chromosome = k
+            new_seg.fractional_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k], centro)
+            new_seg.int_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k], centro) #assumption that sample is diploide. default CN = 2
+            if int(k) == 23:
+                new_seg.fractional_cn = chrX_cn
+                new_seg.int_cn = chrX_cn
+            if int(k) == 24:
+                new_seg.fractional_cn = chrY_cn
+                new_seg.int_cn = chrY_cn
+            new_seg.bp = [0, list(rcop[k].keys())[-1]]
+            segments.append(new_seg)
+        else:
+            seg_list.sort(key=lambda x: x.start)
+            for s in seg_list:
+                start, end = find_start_end(prev_point, s.start, label_list) # there are labels between two segments then create segment with CN =2 between them
+                if start != 0 and end != 0: #
+                    new_seg = Segments()
+                    new_seg.start = start
+                    new_seg.end = end
+                    new_seg.width = end - start
+                    new_seg.chromosome = k
+                    new_seg.fractional_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k], centro)
+                    new_seg.int_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k], centro) #assumption that sample is diploide. default CN = 2
+                    if int(k) == 23:
+                        new_seg.fractional_cn = chrX_cn
+                        new_seg.int_cn = chrX_cn
+                    if int(k) == 24:
+                        new_seg.fractional_cn = chrY_cn
+                        new_seg.int_cn = chrY_cn
+                    new_seg.bp = [start, end]
+                    segments.append(new_seg)
+                prev_point = s.end
+            start, end = find_start_end(s.end, label_list[-1], label_list)
+            if start != 0 and end != 0:
                 new_seg = Segments()
                 new_seg.start = start
                 new_seg.end = end
                 new_seg.width = end - start
                 new_seg.chromosome = k
-                new_seg.fractional_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k])
-                new_seg.int_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k]) #assumption that sample is diploide. default CN = 2
+                new_seg.fractional_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k], centro)
+                new_seg.int_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k], centro)
                 if int(k) == 23:
                     new_seg.fractional_cn = chrX_cn
                     new_seg.int_cn = chrX_cn
@@ -880,226 +900,210 @@ for k in rcop.keys():
                     new_seg.int_cn = chrY_cn
                 new_seg.bp = [start, end]
                 segments.append(new_seg)
-            prev_point = s.end
-        start, end = find_start_end(s.end, label_list[-1], label_list)
-        if start != 0 and end != 0:
-            new_seg = Segments()
-            new_seg.start = start
-            new_seg.end = end
-            new_seg.width = end - start
-            new_seg.chromosome = k
-            new_seg.fractional_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k])
-            new_seg.int_cn = cn_in_mask_N_region(k,new_seg.start,new_seg.end, rcop[k])
-            if int(k) == 23:
-                new_seg.fractional_cn = chrX_cn
-                new_seg.int_cn = chrX_cn
-            if int(k) == 24:
-                new_seg.fractional_cn = chrY_cn
-                new_seg.int_cn = chrY_cn
-            new_seg.bp = [start, end]
-            segments.append(new_seg)
 
-segments.sort(key=lambda x: (int(x.chromosome), x.start))
-# for s in segments:
-#     print('asli', s.chromosome, s.start, s.end, s.int_cn, sorted(s.bp))
-for i in smap:
-    # translocation applied filters. 
-    if i.sv_type.startswith('trans') and i.confidence >= 0.05 and not i.sv_type.endswith(
-            'segdupe') and not i.sv_type.endswith('common') and not i.sv_type.endswith('oveerlap') and (i.ref_c_id1!= i.ref_c_id2 or abs(i.ref_end - i.ref_start) > 300000):
-        svs.append(i)
-        exist,s = detect_receprical_translocation(i)
-        if exist:
-            svs.append(s)
-            print(s.line.strip())
-        print(i.line.strip())
-    # indels
-    elif i.sv_type.startswith('inse') or i.sv_type.startswith('delet'):
-    # elif i.sv_type.startswith('delet'):
-        if not i.sv_type.endswith('nbase') and not i.sv_type.endswith('tiny') and i.confidence >= 0:
-            if i.sv_type.startswith('delet') and i.size > 200000:
-                print(i.line.strip())
-                if detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)[0]:
-                    _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)
+    segments.sort(key=lambda x: (int(x.chromosome), x.start))
+    # for s in segments:
+    #     print('asli', s.chromosome, s.start, s.end, s.int_cn, sorted(s.bp))
+    for i in smap:
+        # translocation applied filters. 
+        if i.sv_type.startswith('trans') and i.confidence >= 0.05 and not i.sv_type.endswith(
+                'segdupe') and not i.sv_type.endswith('common') and not i.sv_type.endswith('oveerlap') and (i.ref_c_id1!= i.ref_c_id2 or abs(i.ref_end - i.ref_start) > 300000):
+            svs.append(i)
+            exist,s = detect_receprical_translocation(i, xmap, smap)
+            if exist:
+                svs.append(s)
+                print(s.line.strip())
+            print(i.line.strip())
+        # indels
+        elif i.sv_type.startswith('inse') or i.sv_type.startswith('delet'):
+        # elif i.sv_type.startswith('delet'):
+            if not i.sv_type.endswith('nbase') and not i.sv_type.endswith('tiny') and i.confidence >= 0:
+                if i.sv_type.startswith('delet') and i.size > 200000:
+                    print(i.line.strip())
+                    if detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)[0]:
+                        _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
+                        svs.append(i)
+                        print(i.line.strip())
+                elif i.size > 500000 and abs(i.ref_end - i.ref_start) > 500000: # this would be for insertion length more than 500Kbp
                     svs.append(i)
                     print(i.line.strip())
-            elif i.size > 500000 and abs(i.ref_end - i.ref_start) > 500000: # this would be for insertion length more than 500Kbp
+        #if we have inversion SV
+        elif i.sv_type == 'inversion' and i.confidence >= 0.7: # filter low confidance 
+            start, end = 0, 0
+            dir = ''
+            dir1, dir2 = detect_sv_directions(i, xmap)
+            s = find_in_smap(i.linkID, smap) #inversion has two rwo in smap file. we find them with Link ID 
+            if dir1 == 'H': #update inversion call. it is to complicated but baisically calculate inversion start and endpoint
+                dir = 'left'
+                start = s.ref_start
+                end = i.ref_end
+            else:
+                dir = 'right'
+                start = i.ref_start
+                end = s.ref_start
+            start, end = min(start, end), max(start, end)
+            i.ref_start = start
+            i.ref_end = end
+            if abs(end - start) > 800000: #apply filter on size of inversion 
+                svs.append(i)
+                print(i.line.strip(), start, end,dir)
+                print(s.line.strip())
+        elif i.sv_type == 'inversion_paired' and i.confidence >= 0.7: #if it is full inversion
+            s = find_in_smap(i.linkID, smap)
+            if abs(i.ref_start - s.ref_end) > 500000:
+                i.ref_end = s.ref_end
+                print(i.line.strip())
+                svs.append(i)
+        elif i.sv_type == 'duplication_inverted':
+            if detect_duplicatioon_inversion_cn(i, xmap, segments)[0]:
+                _, fold_point = detect_duplicatioon_inversion_cn(i, xmap, segments) #because CN is changed
+                i.ref_start = fold_point
+                i.ref_end = fold_point
                 svs.append(i)
                 print(i.line.strip())
-    #if we have inversion SV
-    elif i.sv_type == 'inversion' and i.confidence >= 0.7: # filter low confidance 
-        start, end = 0, 0
-        dir = ''
-        dir1, dir2 = detect_sv_directions(i)
-        s = find_in_smap(i.linkID) #inversion has two rwo in smap file. we find them with Link ID 
-        if dir1 == 'H': #update inversion call. it is to complicated but baisically calculate inversion start and endpoint
-            dir = 'left'
-            start = s.ref_start
-            end = i.ref_end
-        else:
-            dir = 'right'
-            start = i.ref_start
-            end = s.ref_start
-        start, end = min(start, end), max(start, end)
-        i.ref_start = start
-        i.ref_end = end
-        if abs(end - start) > 800000: #apply filter on size of inversion 
-            svs.append(i)
-            print(i.line.strip(), start, end,dir)
-            print(s.line.strip())
-    elif i.sv_type == 'inversion_paired' and i.confidence >= 0.7: #if it is full inversion
-        s = find_in_smap(i.linkID)
-        if abs(i.ref_start - s.ref_end) > 500000:
-            i.ref_end = s.ref_end
-            print(i.line.strip())
-            svs.append(i)
-    elif i.sv_type == 'duplication_inverted':
-        if detect_duplicatioon_inversion_cn(i)[0]:
-            _, fold_point = detect_duplicatioon_inversion_cn(i) #because CN is changed
-            i.ref_start = fold_point
-            i.ref_end = fold_point
+        elif i.sv_type == 'duplication':# or i.sv_type == 'duplication_split':
+            if detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)[0]:
+                _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
+                svs.append(i)
+                print(i.line.strip())
+        elif i.sv_type == 'duplication_split': #This maybe deleted, and get back to duplocation_split
+            # if detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)[0]:
+            #     _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)
+                svs.append(i)
+                print(i.line.strip())
+        elif i.size > 500000 and not i.sv_type.startswith('inversion'): #Other type of SV
             svs.append(i)
             print(i.line.strip())
-    elif i.sv_type == 'duplication':# or i.sv_type == 'duplication_split':
-        if detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)[0]:
-            _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)
-            svs.append(i)
-            print(i.line.strip())
-    elif i.sv_type == 'duplication_split': #This maybe deleted, and get back to duplocation_split
-        # if detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)[0]:
-        #     _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)
-            svs.append(i)
-            print(i.line.strip())
-    elif i.size > 500000 and not i.sv_type.startswith('inversion'): #Other type of SV
-        svs.append(i)
-        print(i.line.strip())
 
-for sv in svs:#integrate BPs and Segments
-    find_bp_in_segment(sv.ref_c_id1, sv.ref_start) #
-    find_bp_in_segment(sv.ref_c_id2, sv.ref_end)
-#merging Bps for spiliting segments 
-for s in segments:
-    s.bp = merge_list(s.bp)
+    for sv in svs:#integrate BPs and Segments
+        find_bp_in_segment(sv.ref_c_id1, sv.ref_start, segments) #
+        find_bp_in_segment(sv.ref_c_id2, sv.ref_end, segments)
+    #merging Bps for spiliting segments 
+    for s in segments:
+        s.bp = merge_list(s.bp)
 
-#Graph Creation
-aa = 0
-g = Graph()
-counter = 0
-prev_chr = 0
-for index, s in enumerate(segments): #Forach segment creates two vertices
-    for inedx_bp, i in enumerate(s.bp):
-        if inedx_bp == 0: #if it is first BP in a segment
-            aa += 1
-            v = Vertices() #Create Vetrices Object
-            v.chromosome = s.chromosome
-            v.id = counter
-            v.pos = i
-            v.cn = s.int_cn
-            v.type = 'H' # the start node is Head node
-            g.vertices.append(v)
-            if prev_chr == s.chromosome:
-                g.edges.append((counter - 1, counter, 0, 'R'))  #addign reference edge between two continues segments
-                g.return_node(counter - 1).append_edges(counter) #update adjancency matrix
+    #Graph Creation
+    aa = 0
+    g = Graph()
+    counter = 0
+    prev_chr = 0
+    for index, s in enumerate(segments): #Forach segment creates two vertices
+        for inedx_bp, i in enumerate(s.bp):
+            if inedx_bp == 0: #if it is first BP in a segment
+                aa += 1
+                v = Vertices() #Create Vetrices Object
+                v.chromosome = s.chromosome
+                v.id = counter
+                v.pos = i
+                v.cn = s.int_cn
+                v.type = 'H' # the start node is Head node
+                g.vertices.append(v)
+                if prev_chr == s.chromosome:
+                    g.edges.append((counter - 1, counter, 0, 'R'))  #addign reference edge between two continues segments
+                    g.return_node(counter - 1).append_edges(counter) #update adjancency matrix
+                    g.return_node(counter).append_edges(counter - 1)
+                prev_chr = s.chromosome
+                counter += 1
+            elif inedx_bp == len(s.bp) - 1: #if it is last BP in a segment
+                aa += 1
+                v = Vertices()
+                v.chromosome = s.chromosome
+                v.id = counter
+                v.pos = i
+                v.cn = s.int_cn
+                v.type = 'T' #last node should be Tail node
+                g.vertices.append(v)
+                g.edges.append((counter - 1, counter, s.int_cn, 'S'))
                 g.return_node(counter).append_edges(counter - 1)
-            prev_chr = s.chromosome
-            counter += 1
-        elif inedx_bp == len(s.bp) - 1: #if it is last BP in a segment
-            aa += 1
-            v = Vertices()
-            v.chromosome = s.chromosome
-            v.id = counter
-            v.pos = i
-            v.cn = s.int_cn
-            v.type = 'T' #last node should be Tail node
-            g.vertices.append(v)
-            g.edges.append((counter - 1, counter, s.int_cn, 'S'))
-            g.return_node(counter).append_edges(counter - 1)
-            g.return_node(counter - 1).append_edges(counter)
-            # g.edges.append((counter,counter-1, s.int_cn,'S'))
-            counter += 1
-            prev_chr = s.chromosome
-        else: #Create both Tail and Head node
-            aa += 1
-            v = Vertices()
-            v.chromosome = s.chromosome
-            v.id = counter
-            v.pos = i
-            v.cn = s.int_cn
-            v.type = 'T'
-            g.vertices.append(v)
-            g.edges.append((counter, counter - 1, s.int_cn, 'S'))
-            g.return_node(counter - 1).append_edges(counter)
-            g.return_node(counter).append_edges(counter - 1)
-            # g.edges.append((counter-1,counter, s.int_cn,'S'))
-            counter += 1
-            ####
-            aa += 1
-            v = Vertices()
-            v.chromosome = s.chromosome
-            v.id = counter
-            v.pos = i + 1
-            v.type = 'H'
-            v.cn = s.int_cn
-            g.vertices.append(v)
-            g.edges.append((counter - 1, counter, 0, 'R'))
-            g.return_node(counter - 1).append_edges(counter)
-            g.return_node(counter).append_edges(counter - 1)
-            counter += 1
-for sv in svs:
-    n_type1, n_type2 = detect_sv_directions(sv)
-    #a and b are two nodes that ara connected by sv edge
-    a = find_nodes(sv.ref_c_id1, sv.ref_start, g.vertices, n_type1)
-    b = find_nodes(sv.ref_c_id2, sv.ref_end, g.vertices, n_type2)
-    # if sv.sv_type == 'inversion' or sv.sv_type == 'inversion_paired':
-    if sv.sv_type == 'inversion_paired': #Lets complete the inversion
-        if g.return_node(a).type == 'H':
-            new_edge = (a-1,b-1,0,'SV')
-        else:
-            new_edge = (a+1,b+1,0,'SV')
-        if new_edge not in g.edges:
-                g.edges.append(new_edge)
-                g.return_node(new_edge[0]).append_edges(new_edge[1])
-                g.return_node(new_edge[1]).append_edges(new_edge[0])
-    if b == a and (a, b, 0, 'SV') not in g.edges: #it can be happend in duplication inversion
-        g.edges.append((a, b, 0, 'SV'))
-        g.return_node(a).append_edges(b)
-    #     print(sv.line)
-    #     print(a,b)
-    elif (a, b, 0, 'SV') not in g.edges:
-        g.edges.append((a, b, 0, 'SV'))
-        g.return_node(a).append_edges(b)
-        g.return_node(b).append_edges(a)
-    # g.edges.append((b,a,0,'SV'))
-g.print_node()
-print('Siavash')
-print(g.edges)
-Plot_graph(g,file,name)
-connected_components = find_connected_components(g)
-for component in connected_components:
-    if 6 in component:
-        component_edges = estimating_edge_multiplicities_in_CC(component)
-connected_components = find_connected_components(g)
-Plot_graph(g,file2,name)
-paths = []
-for component in connected_components:
-    if 6 in component:
-        component_edges = return_all_edges_in_cc(component, g)
-        print(component)
-        print(component_edges)
-        paths.append(printEulerTour(component, component_edges, g))
-# print(paths)
-#write in the output
-with open(output , 'w') as f :
-    f.write('Segment\tNumber\tChromosome\tStart\tEnd\tStartNode\tEndNode\n')
-    number = 1
-    for i in range(0,len(g.vertices),2):
-        v = g.vertices[i]
-        u = g.vertices[i+1]
-        f.write('Segment\t{id}\t{chrom}\t{start}\t{end}\t{snode}\t{enode}\n'.format(id = number, chrom = v.chromosome, start= v.pos, end= u.pos, snode = v.id, enode = u.id))
-        number += 1
-    c = 1
-    for p in paths:
-        for structure in convert_path_to_segment(p,g):
-            # f.write('Path'+str(c)+'='+','.join(str(z) for z in p)+'\n')
-            f.write('Path'+str(c)+ ' = '+structure+'\n')
-            c+=1
-    
+                g.return_node(counter - 1).append_edges(counter)
+                # g.edges.append((counter,counter-1, s.int_cn,'S'))
+                counter += 1
+                prev_chr = s.chromosome
+            else: #Create both Tail and Head node
+                aa += 1
+                v = Vertices()
+                v.chromosome = s.chromosome
+                v.id = counter
+                v.pos = i
+                v.cn = s.int_cn
+                v.type = 'T'
+                g.vertices.append(v)
+                g.edges.append((counter, counter - 1, s.int_cn, 'S'))
+                g.return_node(counter - 1).append_edges(counter)
+                g.return_node(counter).append_edges(counter - 1)
+                # g.edges.append((counter-1,counter, s.int_cn,'S'))
+                counter += 1
+                ####
+                aa += 1
+                v = Vertices()
+                v.chromosome = s.chromosome
+                v.id = counter
+                v.pos = i + 1
+                v.type = 'H'
+                v.cn = s.int_cn
+                g.vertices.append(v)
+                g.edges.append((counter - 1, counter, 0, 'R'))
+                g.return_node(counter - 1).append_edges(counter)
+                g.return_node(counter).append_edges(counter - 1)
+                counter += 1
+    for sv in svs:
+        n_type1, n_type2 = detect_sv_directions(sv, xmap)
+        #a and b are two nodes that ara connected by sv edge
+        a = find_nodes(sv.ref_c_id1, sv.ref_start, g.vertices, n_type1)
+        b = find_nodes(sv.ref_c_id2, sv.ref_end, g.vertices, n_type2)
+        # if sv.sv_type == 'inversion' or sv.sv_type == 'inversion_paired':
+        if sv.sv_type == 'inversion_paired': #Lets complete the inversion
+            if g.return_node(a).type == 'H':
+                new_edge = (a-1,b-1,0,'SV')
+            else:
+                new_edge = (a+1,b+1,0,'SV')
+            if new_edge not in g.edges:
+                    g.edges.append(new_edge)
+                    g.return_node(new_edge[0]).append_edges(new_edge[1])
+                    g.return_node(new_edge[1]).append_edges(new_edge[0])
+        if b == a and (a, b, 0, 'SV') not in g.edges: #it can be happend in duplication inversion
+            g.edges.append((a, b, 0, 'SV'))
+            g.return_node(a).append_edges(b)
+        #     print(sv.line)
+        #     print(a,b)
+        elif (a, b, 0, 'SV') not in g.edges:
+            g.edges.append((a, b, 0, 'SV'))
+            g.return_node(a).append_edges(b)
+            g.return_node(b).append_edges(a)
+        # g.edges.append((b,a,0,'SV'))
+    g.print_node()
+    print('Siavash')
+    print(g.edges)
+    Plot_graph(g,file,name,centro)
+    connected_components = find_connected_components(g)
+    for component in connected_components:
+        if 6 in component:
+            component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
+    connected_components = find_connected_components(g)
+    Plot_graph(g,file2,name,centro)
+    paths = []
+    for component in connected_components:
+        if 6 in component:
+            component_edges = return_all_edges_in_cc(component, g)
+            print(component)
+            print(component_edges)
+            paths.append(printEulerTour(component, component_edges, g, centro))
+    # print(paths)
+    #write in the output
+    with open(output , 'w') as f :
+        f.write('Segment\tNumber\tChromosome\tStart\tEnd\tStartNode\tEndNode\n')
+        number = 1
+        for i in range(0,len(g.vertices),2):
+            v = g.vertices[i]
+            u = g.vertices[i+1]
+            f.write('Segment\t{id}\t{chrom}\t{start}\t{end}\t{snode}\t{enode}\n'.format(id = number, chrom = v.chromosome, start= v.pos, end= u.pos, snode = v.id, enode = u.id))
+            number += 1
+        c = 1
+        for p in paths:
+            for structure in convert_path_to_segment(p,g):
+                # f.write('Path'+str(c)+'='+','.join(str(z) for z in p)+'\n')
+                f.write('Path'+str(c)+ ' = '+structure+'\n')
+                c+=1
+        
+if __name__ == "__main__":
+    main()
