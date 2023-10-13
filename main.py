@@ -1114,7 +1114,7 @@ def main():
     Plot_graph(g,file,name,centro)
     connected_components = find_connected_components(g)
     for component in connected_components:
-        if 6 in component:
+        # if 6 in component:
             component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
     Plot_graph(g,file2,name,centro)
