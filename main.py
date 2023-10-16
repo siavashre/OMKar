@@ -739,21 +739,21 @@ def convert_path_to_segment(p,g): # this is important function that convert Eule
 
     return ans2
 
-def check_exiest_call(chromosome , start , end , type): # if we have a call like gain or loss  but in CNV it is filtered retrive it
+def check_exiest_call(chromosome , start , end , type, all_seg): # if we have a call like gain or loss  but in CNV it is filtered retrive it
     for s in all_seg:
         if s.chromosome == chromosome and s.start >= start and s.end <= end and s.type[:4] == type[:4]:
             return True
     return False
 
 
-def extend_segments_cn(segments):#this function check that if between two cnv call gap is less than 400Kbp and there is a call in CNV call but it marked or filtered we assume it is true and extend the segment length
+def extend_segments_cn(segments, all_seg):#this function check that if between two cnv call gap is less than 400Kbp and there is a call in CNV call but it marked or filtered we assume it is true and extend the segment length
     start = True
     for i in range(0 , len(segments)-1):
         s = segments[i]
         next_seg = segments[i+1]    
         if s.chromosome == next_seg.chromosome:
             if abs(next_seg.start - s.end) < 400000:
-                if check_exiest_call(s.chromosome, s.end, next_seg.start, s.type):
+                if check_exiest_call(s.chromosome, s.end, next_seg.start, s.type, all_seg):
                     s.end = next_seg.start -1
                     s.bp = [s.start , s.end]
                     segments[i] = s
@@ -786,7 +786,7 @@ def cn_in_mask_N_region(chromosome, start, end, cop, centro):
 def is_overlapping(start1, end1, start2, end2):
     return start1 <= end2 and start2 <= end1
 
-def merge_segments_all_seg_smap(segments, all_seg, smap):
+def merge_segments_all_seg_smap(segments, all_seg, smap, centro):
     ans = []
     limit = 50000
     for sv in smap:
@@ -819,7 +819,7 @@ def main():
         centro = None
     segments, all_seg = parse_cnvcall(args.cnv)
     smap = parse_smap(args.smap)
-    segments = merge_segments_all_seg_smap(segments, all_seg, smap) # Need to debug this function
+    segments = merge_segments_all_seg_smap(segments, all_seg, smap, centro) # Need to debug this function
     segments.sort(key=lambda x: (int(x.chromosome), x.start))
     rcov, rcop = parse_rcmap(args.rcmap)
     chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
@@ -833,7 +833,7 @@ def main():
     file2 = args.output+'/'+ args.name + '_2.png'
     name = args.name
     svs = []
-    segments = extend_segments_cn(segments) #fill the gap between calls. 
+    segments = extend_segments_cn(segments, all_seg) #fill the gap between calls. 
     for k in rcop.keys():
         seg_list = []
         label_list = list(rcop[k].keys())
@@ -860,7 +860,7 @@ def main():
             segments.append(new_seg)
     segments, all_seg = parse_cnvcall(args.cnv)
     smap = parse_smap(args.smap)
-    segments = merge_segments_all_seg_smap(segments, all_seg, smap) # Need to debug this function
+    segments = merge_segments_all_seg_smap(segments, all_seg, smap, centro) # Need to debug this function
     segments.sort(key=lambda x: (int(x.chromosome), x.start))
     rcov, rcop = parse_rcmap(args.rcmap)
     chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
@@ -874,7 +874,7 @@ def main():
     file2 = args.output+'/'+ args.name + '_2.png'
     name = args.name
     svs = []
-    segments = extend_segments_cn(segments) #fill the gap between calls. 
+    segments = extend_segments_cn(segments, all_seg) #fill the gap between calls. 
     for k in rcop.keys():
         seg_list = []
         label_list = list(rcop[k].keys())
