@@ -123,7 +123,10 @@ def merge_list(l): # this function merge all breakpoints in a segment within a w
     if len(group) > 0:
         ans.append(np.mean(group))
     return ans
-
+def rev_dir(a):
+    if a == 'H':
+        return 'T'
+    return 'H'
 ######################### DOUBLE CHECK THIS FUNCTION ######################################
 def detect_sv_directions(sv, xmap): #this function detect the direction of one smap like H/T to H/T. #need to be check Contain bug?
     if sv.sv_type == 'inversion_paired': # for inversion_paired always return T to T
@@ -146,18 +149,25 @@ def detect_sv_directions(sv, xmap): #this function detect the direction of one s
         dir2 = 'H'
     else:
         dir2 = 'T'
-    dir1_a = dir1
-    dir2_a = dir2
-    dir1_b = dir1 
-    dir2_b = dir2
-    if swap == 1:
-        dir1_a, dir2_a = dir2, dir1
     if int(alignment1['RefContigID']) > int(alignment2['RefContigID']) or (int(alignment1['RefContigID']) == int(alignment2['RefContigID'])
          and alignment1['RefStartPos']> alignment2['RefStartPos']):
-        dir1_b, dir2_b = dir2, dir1
-    if dir1_a !=dir1_b:
-        print('Here we had BUG BUG BUG',sv)
-    return dir1_b, dir2_b
+        if dir1 =='T' and dir2 == 'H':
+            return 'H','T'
+        elif dir1 =='H' and dir2 == 'T':
+            return 'T','H'
+    return dir1, dir2
+    # dir1_a = dir1
+    # dir2_a = dir2
+    # dir1_b = dir1
+    # dir2_b = dir2
+    # if swap == 1:
+    #     dir1_a, dir2_a = dir2, dir1
+    # if int(alignment1['RefContigID']) > int(alignment2['RefContigID']) or (int(alignment1['RefContigID']) == int(alignment2['RefContigID'])
+    #      and alignment1['RefStartPos']> alignment2['RefStartPos']):
+    #     dir1_b, dir2_b = dir2, dir1
+    # if dir1_a !=dir1_b:
+    #     print('Here we had BUG BUG BUG',sv)
+    # return dir1_b, dir2_b
 
 
 def find_nodes(chromosome, pos, vertices, node_type): #find the closest node and return it id to the chromosome and position and type
@@ -425,6 +435,7 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
             component_edges[index][0] = list(component_edges[index][0])
             component_edges[index][0][2] = int(i.varValue)
             component_edges[index]= tuple(component_edges[index][0])
+            print(component_edges[index][0], component_edges[index][1], i.varValue, component_edges[index][3],'kiri')
             g.update_edges(component_edges[index][0], component_edges[index][1], int(i.varValue), component_edges[index][3])
         if i.name != '__dummy' and i.name.startswith('Y'):
             index = int(i.name[1:])
@@ -501,10 +512,12 @@ def check_traverse_segment(prev,u, next): # this function check that after a any
         return True
     return False
 
-def printEulerUtil(g, u, prev): #find Eulerian path or circuts in graph g starting with node u and previouse seen node is prev.
+def printEulerUtil(g, u, prev,chrom): #find Eulerian path or circuts in graph g starting with node u and previouse seen node is prev.
     valid = []
     next_find = False
     next_node = -1
+    back_to_chrom = False
+    back_to_chrom_node = -1
     for v in g.return_node(u).edges:
         e_list = g.return_edges(u, v) #all edges between u and v
         for e in e_list:
@@ -512,35 +525,41 @@ def printEulerUtil(g, u, prev): #find Eulerian path or circuts in graph g starti
                 valid.append((v,e))
                 if abs(v- u) == 1 and v !=prev: #We want to force if next node is availanle traverse it at first between all options. 
                     next_find = True
-                    # print('NextFind', u, v)
                     next_node = v
+                elif g.return_node(u)!=g.return_node(v) and g.return_node(v) == chrom:
+                    back_to_chrom = True
+                    back_to_chrom_node = v
     valid = sorted(valid, key=lambda tup: (tup[0],tup[1][3])) # this is all valid options for traverse 
     # print('haa', u, prev, valid,next_find, next_node)
     if len(valid) == 1: #if length is equal to one Just traverse it. 
         g = remove_edge(g, valid[0][1])
-        return [u] + printEulerUtil(g, valid[0][0], u)
+        return [u] + printEulerUtil(g, valid[0][0], u,chrom)
     elif len(valid) > 1:
-        if next_find: #if next is available just traverse it 
+        # if back_to_chrom:
+        #     for i in valid:
+        #         if i[0] == back_to_chrom_node:
+        #             g = remove_edge(g, i[1])
+        #             return [u] + printEulerUtil(g, i[0], u,chrom)
+        if next_find: #if next is available just traverse it
             for i in valid: 
                 if i[0] == next_node:
-                    g = remove_edge(g, i[1])    
-                    # print('ali')
-                    return [u] + printEulerUtil(g, i[0], u)
+                    g = remove_edge(g, i[1])
+                    return [u] + printEulerUtil(g, i[0], u,chrom)
         find = False
         for i in valid: 
             if i[0]!= prev and i[0] != u: #first if next node is not previouse and current one jump to it
                 g = remove_edge(g, i[1])
                 find = True
                 # print('reza')
-                return [u] + printEulerUtil(g, i[0], u)
+                return [u] + printEulerUtil(g, i[0], u,chrom)
         if not find :
             for i in valid: 
                 if i[0]!= prev:
                     g = remove_edge(g, i[1])
                     # print('mamad')
-                    return [u] + printEulerUtil(g, i[0], u)
+                    return [u] + printEulerUtil(g, i[0], u,chrom)
             g = remove_edge(g, valid[0][1])
-            return [u] + printEulerUtil(g, valid[0][0], u)
+            return [u] + printEulerUtil(g, valid[0][0], u,chrom)
     return [u]
 
 
@@ -610,19 +629,19 @@ def printEulerTour(component, component_edges, g, centro): #Find Eulerian path/c
         # a = printEulerUtil(g2, segment_vertices[0], -1)
         a = []
         for i in segment_vertices:
-            a.append(printEulerUtil(g2, i, -1))
+            a.append(printEulerUtil(g2, i, -1, g.return_node(i).chromosome))
         a = scoring_paths(a,segment_vertices,g,centro)
     elif len(odd_vertices) == 2: # Eulerian path exists
         if odd_vertices[0] in segment_vertices: #it is better to start path finding from telomere regions
-            a = printEulerUtil(g2, odd_vertices[0], -1)
+            a = printEulerUtil(g2, odd_vertices[0], -1,g.return_node(odd_vertices[0]).chromosome)
         elif odd_vertices[1] in segment_vertices:
-            a = printEulerUtil(g2, odd_vertices[1], -1)
+            a = printEulerUtil(g2, odd_vertices[1], -1,g.return_node(odd_vertices[0]).chromosome)
         else:#If not exist add a dummy edges to make it Eulerian and then find from segment vertices
             g2.add_dummy_edges(odd_vertices[0],odd_vertices[1])
             # a = printEulerUtil(g2, segment_vertices[0], -1)
             a = []
             for i in segment_vertices:
-                a.append(printEulerUtil(g2, i, -1))
+                a.append(printEulerUtil(g2, i, -1,g.return_node(i).chromosome))
             a = scoring_paths(a,segment_vertices,g,centro)
     else: # if more than two vertices with odd degree. Connect them to each other to make the graph Eulerian 
         if len(set(odd_vertices).intersection(set(segment_vertices))) == 0: #no telomere nodes with odd degree connect all of them to gether like previouse setp
@@ -630,7 +649,7 @@ def printEulerTour(component, component_edges, g, centro): #Find Eulerian path/c
                 g2.add_dummy_edges(odd_vertices[i],odd_vertices[i+1])
             a = []
             for i in segment_vertices:
-                a.append(printEulerUtil(g2, i, -1))
+                a.append(printEulerUtil(g2, i, -1,g.return_node(i).chromosome))
             a = scoring_paths(a,segment_vertices,g,centro)
             # a = printEulerUtil(g2, segment_vertices[-1], -1)#Siavash in chaneed shode 
         else:
@@ -643,9 +662,9 @@ def printEulerTour(component, component_edges, g, centro): #Find Eulerian path/c
                 else:
                     g2.add_dummy_edges(odd_vertices[i],odd_vertices[i+1])
             if odd_vertices[save_index] in segment_vertices:
-                a = printEulerUtil(g2, odd_vertices[save_index], -1)
+                a = printEulerUtil(g2, odd_vertices[save_index], -1,g.return_node(odd_vertices[save_index]).chromosome)
             else:
-                a = printEulerUtil(g2, odd_vertices[save_index+1], -1)   
+                a = printEulerUtil(g2, odd_vertices[save_index+1], -1,g.return_node(odd_vertices[save_index]).chromosome)
 
     print(g2.edges)
     g2.print_node()
@@ -1088,6 +1107,9 @@ def main():
         #a and b are two nodes that ara connected by sv edge
         a = find_nodes(sv.ref_c_id1, sv.ref_start, g.vertices, n_type1)
         b = find_nodes(sv.ref_c_id2, sv.ref_end, g.vertices, n_type2)
+        if int(sv.ref_c_id1) > int(sv.ref_c_id2) or (int(sv.ref_c_id1) == int(sv.ref_c_id2) and sv.ref_end < sv.ref_start):
+            a = find_nodes(sv.ref_c_id1, sv.ref_start, g.vertices, n_type2)
+            b = find_nodes(sv.ref_c_id2, sv.ref_end, g.vertices, n_type1)
         # if sv.sv_type == 'inversion' or sv.sv_type == 'inversion_paired':
         if sv.sv_type == 'inversion_paired': #Lets complete the inversion
             if g.return_node(a).type == 'H':
@@ -1114,16 +1136,17 @@ def main():
     Plot_graph(g,file,name,centro)
     connected_components = find_connected_components(g)
     for component in connected_components:
-        # if 6 in component:
+        # if 91 in component:
             component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
     Plot_graph(g,file2,name,centro)
     paths = []
     for component in connected_components:
-        component_edges = return_all_edges_in_cc(component, g)
-        print(component)
-        print(component_edges)
-        paths.append(printEulerTour(component, component_edges, g, centro))
+        # if 91 in component:
+            component_edges = return_all_edges_in_cc(component, g)
+            print(component)
+            print(component_edges)
+            paths.append(printEulerTour(component, component_edges, g, centro))
     # print(paths)
     #write in the output
     with open(output , 'w') as f :
