@@ -435,7 +435,7 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
             component_edges[index][0] = list(component_edges[index][0])
             component_edges[index][0][2] = int(i.varValue)
             component_edges[index]= tuple(component_edges[index][0])
-            print(component_edges[index][0], component_edges[index][1], i.varValue, component_edges[index][3],'kiri')
+            print(component_edges[index][0], component_edges[index][1], i.varValue, component_edges[index][3])
             g.update_edges(component_edges[index][0], component_edges[index][1], int(i.varValue), component_edges[index][3])
         if i.name != '__dummy' and i.name.startswith('Y'):
             index = int(i.name[1:])
@@ -722,20 +722,120 @@ def check_non_centromeric_path(p, g, centro):
         u = g.return_node(p[i])
         v = g.return_node(p[i+1])
         if u.chromosome == v.chromosome:
-            if (min(u.pos,v.pos)< min(centro['chr'+str(u.chromosome)]) and max(u.pos, v.pos)> min(centro['chr'+str(u.chromosome)])) or (min(u.pos,v.pos)< max(centro['chr'+str(u.chromosome)]) and max(u.pos, v.pos)> max(centro['chr'+str(u.chromosome)])):
+            # if (min(u.pos,v.pos)< min(centro['chr'+str(u.chromosome)]) and max(u.pos, v.pos)> min(centro['chr'+str(u.chromosome)])) or (min(u.pos,v.pos)< max(centro['chr'+str(u.chromosome)]) and max(u.pos, v.pos)> max(centro['chr'+str(u.chromosome)])):
+            if is_overlapping(min(u.pos,v.pos), max(u.pos,v.pos),min(centro['chr'+str(u.chromosome)]),max(centro['chr'+str(u.chromosome)])):
                 count += 1
     return count
+def reverse_path(path):
+    # Split the path into individual movements
+    movements = path.split()
+    # Reverse the list of movements to reverse the order
+    reversed_movements = movements[::-1]
+    # Initialize an empty list to store the reversed movements with reversed directions
+    reversed_with_directions = []
+    # Reverse the directions in each movement and add it to the reversed_with_directions list
+    for movement in reversed_movements:
+        direction = movement[-1]  # Get the last character (either '+' or '-')
+        reversed_direction = '+' if direction == '-' else '-'  # Reverse the direction
+        movement_with_direction = movement[:-1] + reversed_direction  # Create the reversed movement with direction
+        reversed_with_directions.append(movement_with_direction)
+    # Join the reversed movements with reversed directions to form the reversed path
+    reversed_path = ' '.join(reversed_with_directions)
+    return reversed_path
 
-def convert_path_to_segment(p,g): # this is important function that convert Eulerion path with vertices ID to segment path. 
+def find_indices_with_sum_of_2(numbers):
+    n = len(numbers)
+    ans = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            if numbers[i] + numbers[j] == 2:
+                ans.append((i,j))
+    return ans
+def share_same_segments(path1, path2):
+    # Split the paths into individual movements
+    movements1 = path1.split()
+    movements2 = path2.split()
+    for i in movements1:
+        for j in movements2:
+            if i == j:
+                return True
+    return False
+def convert_segment_to_path(p):
+    ans = []
+    for i in p:
+        direction = i[-1]
+        seg_number = int(i[:-1])
+        numbers1, numbers2 = seg_number*2-2 , seg_number*2 -1
+        if direction == '+':
+            ans.append(numbers1)
+            ans.append(numbers2)
+        else:
+            ans.append(numbers2)
+            ans.append(numbers1)
+    return ans
+
+
+def swap_segment(p1, p2,g, centro):
+    movements1 = p1.split()
+    movements2 = p2.split()
+    for i in range(len(movements1)):
+        for j in range(len(movements2)):
+            if movements1[i] == movements2[j]:
+                new_p1 = movements2[:j]+movements1[i:]
+                new_p2 = movements1[:i]+movements2[j:]
+                if check_non_centromeric_path(convert_segment_to_path(new_p1),g, centro) == 1 and check_non_centromeric_path(convert_segment_to_path(new_p2),g, centro) == 1:
+                    return True, ' '.join(new_p1), ' '.join(new_p2)
+    return False ,p1 , p2
+def fix_dicentric(paths, scores,g , centro):
+    bad_path = []
+    bad_scores = []
+    ans_path = []
+    ans_score = []
+    for i in range(len(paths)):
+        if scores[i] !=1:
+            bad_path.append(paths[i])
+            bad_scores.append(scores[i])
+        else:
+            ans_score.append(scores[i])
+            ans_path.append(paths[i])
+    list_of_indices = find_indices_with_sum_of_2(bad_scores)
+    seen = []
+    for pair_indices in list_of_indices:
+        i,j = pair_indices[0], pair_indices[1]
+        if i not in seen and j not in seen:
+            if share_same_segments(bad_path[i], bad_path[j]):
+                condition,p1 , p2 = swap_segment(bad_path[i], bad_path[j],g,centro)
+            elif share_same_segments(reverse_path(bad_path[i]), bad_path[j]):
+                condition,p1 , p2 = swap_segment(reverse_path(bad_path[i]), bad_path[j],g,centro)
+            if condition:
+                ans_path.append(p1)
+                ans_score.append(1)
+                ans_path.append(p2)
+                ans_score.append(1)
+                seen.append(i)
+                seen.append(j)
+    for i in range(len(bad_scores)):
+        if i not in seen:
+            ans_path.append(bad_path[i])
+            ans_score.append(bad_scores[i])
+    return ans_path , ans_score
+
+
+
+
+
+def convert_path_to_segment(p,g,centro): # this is important function that convert Eulerion path with vertices ID to segment path.
     component = list(set(p))
     component_edges = return_all_edges_in_cc(component, g)
     segment_vertices = detect_segment_vertices(component, component_edges)
     ans = []
     temp = [p[0]]
+    scores_path = []
     for i in range(1,len(p)-1):
         if p[i] in segment_vertices:# and p[i-1]==p[i+1]:
             temp.append(p[i])
             ans.append(temp)
+            scores_path.append(check_non_centromeric_path(temp,g,centro))
             if p[i-1] == p[i+1]:
                 temp = [p[i]]
             else:
@@ -744,6 +844,7 @@ def convert_path_to_segment(p,g): # this is important function that convert Eule
             temp.append(p[i])
     temp.append(p[-1])
     ans.append(temp)
+    scores_path.append(check_non_centromeric_path(temp,g,centro))
     ans2 = []
     for p in ans:
         temp = ''
@@ -756,7 +857,7 @@ def convert_path_to_segment(p,g): # this is important function that convert Eule
             temp = temp + str(seg_number)+direction+' '
         ans2.append(temp)
 
-    return ans2
+    return fix_dicentric(ans2,scores_path,g,centro)
 
 def check_exiest_call(chromosome , start , end , type, all_seg): # if we have a call like gain or loss  but in CNV it is filtered retrive it
     for s in all_seg:
@@ -1159,10 +1260,13 @@ def main():
             number += 1
         c = 1
         for p in paths:
-            for structure in convert_path_to_segment(p,g):
+            structures,scores = convert_path_to_segment(p,g,centro)
+            for jj in range(len(structures)):
+                structure = structures[jj]
                 # f.write('Path'+str(c)+'='+','.join(str(z) for z in p)+'\n')
-                f.write('Path'+str(c)+ ' = '+structure+'\n')
+                # print('path',p,check_non_centromeric_path(p,g, centro))
+                f.write('Path'+str(c)+ ' = '+structure+'\t score = '+str(scores[jj])+'\n')
                 c+=1
-        
+
 if __name__ == "__main__":
     main()
