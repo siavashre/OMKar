@@ -421,7 +421,7 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
     # print('obj', objective)
     # print('Sv_sum', sv_sum)
     # objective = 10 * objective  - 9 * sv_sum + 15 * cn_tune
-    objective = 5 * objective  - 9 * sv_sum + 4 * cn_tune
+    objective = 10 * objective  - 9 * sv_sum + 4 * cn_tune
     # print('obj', objective)
     Lp_prob += objective
     print(Lp_prob)
@@ -803,6 +803,7 @@ def fix_dicentric(paths, scores,g , centro):
     for pair_indices in list_of_indices:
         i,j = pair_indices[0], pair_indices[1]
         if i not in seen and j not in seen:
+            condition = False
             if share_same_segments(bad_path[i], bad_path[j]):
                 condition,p1 , p2 = swap_segment(bad_path[i], bad_path[j],g,centro)
             elif share_same_segments(reverse_path(bad_path[i]), bad_path[j]):
@@ -914,7 +915,7 @@ def merge_segments_all_seg_smap(segments, all_seg, smap, centro):
             a= 0
             for s in all_seg:
                 if sv.ref_c_id1 == s.chromosome and s.type.startswith('loss') and s.width> 2 * limit:
-                    if abs(s.start - min(sv.ref_start, sv.ref_end)) < limit and abs(s.end - max(sv.ref_start, sv.ref_end)) < limit:
+                    if abs(s.start - min(sv.ref_start, sv.ref_end)) < 20000 and abs(s.end - max(sv.ref_start, sv.ref_end)) < 20000:
                         if not is_overlapping(min(centro['chr'+str(sv.ref_c_id1)]), max(centro['chr'+str(sv.ref_c_id1)]),sv.ref_start, sv.ref_end):
                             ans.append(s)
     for s in ans:
