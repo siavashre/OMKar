@@ -946,6 +946,7 @@ def main():
     chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
     # chrX_cn = 2
     chrX_cn = round(np.average(list(rcop['23'].values())))
+    print('dashag', np.average(list(rcop['23'].values())))
     if chrY_cn > 0:
         chrX_cn = 1
     xmap = parse_xmap(args.xmap)
@@ -1046,7 +1047,7 @@ def main():
     # for s in segments:
     #     print('asli', s.chromosome, s.start, s.end, s.int_cn, sorted(s.bp))
     for i in smap:
-        # translocation applied filters. 
+        # translocation applied filters.
         if i.sv_type.startswith('trans') and i.confidence >= 0.05 and not i.sv_type.endswith(
                 'segdupe') and not i.sv_type.endswith('common') and not i.sv_type.endswith('oveerlap') and (i.ref_c_id1!= i.ref_c_id2 or abs(i.ref_end - i.ref_start) > 300000):
             svs.append(i)
@@ -1069,11 +1070,11 @@ def main():
                     svs.append(i)
                     print(i.line.strip())
         #if we have inversion SV
-        elif i.sv_type == 'inversion' and i.confidence >= 0.7: # filter low confidance 
+        elif i.sv_type == 'inversion' and i.confidence >= 0.7: # filter low confidance
             start, end = 0, 0
             dir = ''
             dir1, dir2 = detect_sv_directions(i, xmap)
-            s = find_in_smap(i.linkID, smap) #inversion has two rwo in smap file. we find them with Link ID 
+            s = find_in_smap(i.linkID, smap) #inversion has two rwo in smap file. we find them with Link ID
             if dir1 == 'H': #update inversion call. it is to complicated but baisically calculate inversion start and endpoint
                 dir = 'left'
                 start = s.ref_start
@@ -1085,7 +1086,7 @@ def main():
             start, end = min(start, end), max(start, end)
             i.ref_start = start
             i.ref_end = end
-            if abs(end - start) > 800000: #apply filter on size of inversion 
+            if abs(end - start) > 800000: #apply filter on size of inversion
                 svs.append(i)
                 print(i.line.strip(), start, end,dir)
                 print(s.line.strip())
@@ -1226,13 +1227,13 @@ def main():
     Plot_graph(g,file,name,centro)
     connected_components = find_connected_components(g)
     for component in connected_components:
-        # if 1 in component:
+        # if 142 in component:
             component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
     Plot_graph(g,file2,name,centro)
     paths = []
     for component in connected_components:
-        # if 1 in component:
+        # if 142 in component:
             component_edges = return_all_edges_in_cc(component, g)
             print(component)
             print(component_edges)
