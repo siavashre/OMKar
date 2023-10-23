@@ -421,7 +421,7 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
     # print('obj', objective)
     # print('Sv_sum', sv_sum)
     # objective = 10 * objective  - 9 * sv_sum + 15 * cn_tune
-    objective = 10 * objective  - 9 * sv_sum + 4 * cn_tune
+    objective = 15 * objective  - 9 * sv_sum + 5 * cn_tune
     # print('obj', objective)
     Lp_prob += objective
     print(Lp_prob)
@@ -803,7 +803,6 @@ def fix_dicentric(paths, scores,g , centro):
     for pair_indices in list_of_indices:
         i,j = pair_indices[0], pair_indices[1]
         if i not in seen and j not in seen:
-            condition = False
             if share_same_segments(bad_path[i], bad_path[j]):
                 condition,p1 , p2 = swap_segment(bad_path[i], bad_path[j],g,centro)
             elif share_same_segments(reverse_path(bad_path[i]), bad_path[j]):
@@ -914,8 +913,8 @@ def merge_segments_all_seg_smap(segments, all_seg, smap, centro):
         if sv.sv_type == 'deletion':# and sv.ref_c_id1=='17':# and sv.ref_start > 20400000 and sv.ref_start < 21000000:
             a= 0
             for s in all_seg:
-                if sv.ref_c_id1 == s.chromosome and s.type.startswith('loss') and s.width> 2 * limit:
-                    if abs(s.start - min(sv.ref_start, sv.ref_end)) < 20000 and abs(s.end - max(sv.ref_start, sv.ref_end)) < 20000:
+                if sv.ref_c_id1 == s.chromosome and s.type.startswith('loss') and not s.type.endswith('masked')  and s.width> 2 * limit:
+                    if abs(s.start - min(sv.ref_start, sv.ref_end)) < limit and abs(s.end - max(sv.ref_start, sv.ref_end)) < limit:
                         if not is_overlapping(min(centro['chr'+str(sv.ref_c_id1)]), max(centro['chr'+str(sv.ref_c_id1)]),sv.ref_start, sv.ref_end):
                             ans.append(s)
     for s in ans:
@@ -979,23 +978,6 @@ def main():
                 new_seg.int_cn = chrY_cn
             new_seg.bp = [0, list(rcop[k].keys())[-1]]
             segments.append(new_seg)
-    segments, all_seg = parse_cnvcall(args.cnv)
-    smap = parse_smap(args.smap)
-    segments = merge_segments_all_seg_smap(segments, all_seg, smap, centro) # Need to debug this function
-    segments.sort(key=lambda x: (int(x.chromosome), x.start))
-    rcov, rcop = parse_rcmap(args.rcmap)
-    chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
-    # chrX_cn = 2
-    chrX_cn = round(np.average(list(rcop['23'].values())))
-    if chrY_cn > 0:
-        chrX_cn = 1
-    xmap = parse_xmap(args.xmap)
-    output = args.output+'/'+ args.name + '.txt'
-    file = args.output+'/'+ args.name + '.png'
-    file2 = args.output+'/'+ args.name + '_2.png'
-    name = args.name
-    svs = []
-    segments = extend_segments_cn(segments, all_seg) #fill the gap between calls. 
     for k in rcop.keys():
         seg_list = []
         label_list = list(rcop[k].keys())
@@ -1119,16 +1101,16 @@ def main():
                 i.ref_end = fold_point
                 svs.append(i)
                 print(i.line.strip())
-        elif i.sv_type == 'duplication':# or i.sv_type == 'duplication_split':
+        elif i.sv_type == 'duplication' or i.sv_type == 'duplication_split':
             if detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)[0]:
                 _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
                 svs.append(i)
                 print(i.line.strip())
-        elif i.sv_type == 'duplication_split': #This maybe deleted, and get back to duplocation_split
-            # if detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)[0]:
-            #     _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)
-                svs.append(i)
-                print(i.line.strip())
+        # elif i.sv_type == 'duplication_split': #This maybe deleted, and get back to duplocation_split
+        #     # if detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)[0]:
+        #     #     _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)
+        #         svs.append(i)
+        #         print(i.line.strip())
         elif i.size > 500000 and not i.sv_type.startswith('inversion'): #Other type of SV
             svs.append(i)
             print(i.line.strip())
@@ -1238,13 +1220,13 @@ def main():
     Plot_graph(g,file,name,centro)
     connected_components = find_connected_components(g)
     for component in connected_components:
-        # if 91 in component:
+        if 87 in component:
             component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
     Plot_graph(g,file2,name,centro)
     paths = []
     for component in connected_components:
-        # if 91 in component:
+        if 87 in component:
             component_edges = return_all_edges_in_cc(component, g)
             print(component)
             print(component_edges)
