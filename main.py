@@ -803,6 +803,7 @@ def fix_dicentric(paths, scores,g , centro):
     for pair_indices in list_of_indices:
         i,j = pair_indices[0], pair_indices[1]
         if i not in seen and j not in seen:
+            condition = False
             if share_same_segments(bad_path[i], bad_path[j]):
                 condition,p1 , p2 = swap_segment(bad_path[i], bad_path[j],g,centro)
             elif share_same_segments(reverse_path(bad_path[i]), bad_path[j]):
