@@ -1210,6 +1210,11 @@ def main():
             g.return_node(a).append_edges(b)
         #     print(sv.line)
         #     print(a,b)
+        elif sv.sv_type.startswith('delet'): #telomere cite deletion prevent
+            if (a, b, 0, 'SV') not in g.edges and abs(a-b)!=1:
+                g.edges.append((a, b, 0, 'SV'))
+                g.return_node(a).append_edges(b)
+                g.return_node(b).append_edges(a)
         elif (a, b, 0, 'SV') not in g.edges:
             g.edges.append((a, b, 0, 'SV'))
             g.return_node(a).append_edges(b)
@@ -1221,13 +1226,13 @@ def main():
     Plot_graph(g,file,name,centro)
     connected_components = find_connected_components(g)
     for component in connected_components:
-        if 87 in component:
+        # if 1 in component:
             component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
     Plot_graph(g,file2,name,centro)
     paths = []
     for component in connected_components:
-        if 87 in component:
+        # if 1 in component:
             component_edges = return_all_edges_in_cc(component, g)
             print(component)
             print(component_edges)
