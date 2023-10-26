@@ -10,6 +10,8 @@ import argparse
 import itertools
 from copy import deepcopy
 import math
+from matplotlib import rcParams
+rcParams['pdf.fonttype'] = 42
 
 class Vertices: #Class of vertices in out graph
     def __init__(self):
@@ -951,7 +953,8 @@ def main():
         chrX_cn = 1
     xmap = parse_xmap(args.xmap)
     output = args.output+'/'+ args.name + '.txt'
-    file = args.output+'/'+ args.name + '.png'
+    output2 = args.output+'/'+ args.name + '_SV.txt'
+    file = args.output+'/'+ args.name + '.pdf'
     file2 = args.output+'/'+ args.name + '_2.png'
     name = args.name
     svs = []
@@ -1046,6 +1049,16 @@ def main():
     segments.sort(key=lambda x: (int(x.chromosome), x.start))
     # for s in segments:
     #     print('asli', s.chromosome, s.start, s.end, s.int_cn, sorted(s.bp))
+    with open(output2 , 'w') as f :
+        f.write('#h\tSmapEntryID\tQryContigID\tRefcontigID1\tRefcontigID2\tQryStartPos\tQryEndPos\tRefStartPos\tRefEndPos\tConfidence\tType\tXmapID1\tXmapID2\tLinkID\tQryStartIdx\tQryEndIdx\tRefStartIdx\tRefEndIdx\tZygosity\tGenotype\tGenotypeGroup\tRawConfidence\tRawConfidenceLeft\tRawConfidenceRight\tRawConfidenceCenter\tSVsize\tSVfreq\tOrientation\tVAF\n')
+        for i in smap:
+            if i.sv_type.startswith('dele') and not i.sv_type.endswith('nbase') and not i.sv_type.endswith('tiny') and i.size > 50000 and i.size < 500000 and i.confidence > 0.8:
+                f.write(i.line)
+            elif i.sv_type == 'duplication' or i.sv_type == 'duplication_split' or i.sv_type == 'duplication_inverted':
+                f.write(i.line)
+            elif i.sv_type == 'inversion' and i.confidence >= 0.7:
+                f.write(i.line)
+    f.close()
     for i in smap:
         # translocation applied filters.
         if i.sv_type.startswith('trans') and i.confidence >= 0.05 and not i.sv_type.endswith(
@@ -1120,7 +1133,7 @@ def main():
     for sv in svs:#integrate BPs and Segments
         find_bp_in_segment(sv.ref_c_id1, sv.ref_start, segments) #
         find_bp_in_segment(sv.ref_c_id2, sv.ref_end, segments)
-    #merging Bps for spiliting segments 
+    #merging Bps for spiliting segments
     for s in segments:
         s.bp = merge_list(s.bp)
 
@@ -1253,6 +1266,8 @@ def main():
             structures,scores = convert_path_to_segment(p,g,centro)
             for jj in range(len(structures)):
                 structure = structures[jj]
+                if structure.endswith(' '):
+                    structure = structure[:-1]
                 # f.write('Path'+str(c)+'='+','.join(str(z) for z in p)+'\n')
                 # print('path',p,check_non_centromeric_path(p,g, centro))
                 f.write('Path'+str(c)+ ' = '+structure+'\t score = '+str(scores[jj])+'\n')
