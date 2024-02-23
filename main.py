@@ -11,7 +11,8 @@ import itertools
 from copy import deepcopy
 import math
 from matplotlib import rcParams
-
+from utill import *
+from  bionano_metadata import *
 rcParams['pdf.fonttype'] = 42
 
 
@@ -149,58 +150,7 @@ def rev_dir(a):
     return 'H'
 
 
-######################### DOUBLE CHECK THIS FUNCTION ######################################
-def detect_sv_directions(sv, xmap):  # this function detect the direction of one smap like H/T to H/T. #need to be check Contain bug?
-    if sv.sv_type == 'inversion_paired':  # for inversion_paired always return T to T
-        return 'T', 'T'
-    dir1, dir2 = '', ''
-    xmap_id1 = sv.xmap_id1
-    xmap_id2 = sv.xmap_id2
-    alignment1 = xmap[str(xmap_id1)]
-    alignment2 = xmap[str(xmap_id2)]
-    swap = 0
-    if min(alignment1['QryStartPos'], alignment1['QryEndPos']) > min(alignment2['QryStartPos'],
-                                                                     alignment2['QryEndPos']):
-        swap = 1
-        alignment1, alignment2 = alignment2, alignment1  # sort alignment1 and alignment2 by query position. Always alignment1 has smaller position on the query
-    if alignment1['Orientation'] == '+':
-        dir1 = 'T'
-    else:
-        dir1 = 'H'
-    if alignment2['Orientation'] == '+':
-        dir2 = 'H'
-    else:
-        dir2 = 'T'
-    if int(alignment1['RefContigID']) > int(alignment2['RefContigID']) or (int(alignment1['RefContigID']) == int(alignment2['RefContigID'])
-                                                                           and alignment1['RefStartPos'] > alignment2['RefStartPos']):
-        if dir1 == 'T' and dir2 == 'H':
-            return 'H', 'T'
-        elif dir1 == 'H' and dir2 == 'T':
-            return 'T', 'H'
-    return dir1, dir2
-    # dir1_a = dir1
-    # dir2_a = dir2
-    # dir1_b = dir1
-    # dir2_b = dir2
-    # if swap == 1:
-    #     dir1_a, dir2_a = dir2, dir1
-    # if int(alignment1['RefContigID']) > int(alignment2['RefContigID']) or (int(alignment1['RefContigID']) == int(alignment2['RefContigID'])
-    #      and alignment1['RefStartPos']> alignment2['RefStartPos']):
-    #     dir1_b, dir2_b = dir2, dir1
-    # if dir1_a !=dir1_b:
-    #     print('Here we had BUG BUG BUG',sv)
-    # return dir1_b, dir2_b
 
-
-def find_nodes(chromosome, pos, vertices, node_type):  # find the closest node and return it id to the chromosome and position and type
-    dist = 999999999  # as input take the chromosome number and position and type of node we are looking to it(H or T) and return it.
-    ans = -1
-    for v in vertices:
-        if v.chromosome == chromosome and v.type == node_type:
-            if abs(v.pos - pos) < dist:
-                dist = abs(v.pos - pos)
-                ans = v.id
-    return ans
 
 
 def find_start_end(prev_point, start, label_list):
@@ -321,12 +271,6 @@ def Plot_graph(g, file, name, centro):  # this function plot the graph
     plt.savefig(file, dpi=200)
 
 
-def find_in_smap(id, smap):  # return a smap call with the iD otherwise return None
-    for s in smap:
-        if s.smap_id == id:
-            return s
-    return None
-
 
 def dfs(i, temp, g, visited):  # run dfs alg on graph g on vertices i. visited is a list of seen vertices before visiting this node.
     visited.append(i)
@@ -349,21 +293,6 @@ def find_connected_components(g):  # find connected components in a graph g
     return cc
 
 
-def return_all_edges_in_cc(c, g):  # this function return all edges in graph g which is in connectec components C
-    # c is a list of all vertices id in this connected component
-    component_edges = []
-    paired = itertools.combinations(c, 2)  # all combination two of these vertices will check if the edges exist or not
-    for p in paired:
-        e_list = g.return_edges(p[0], p[1])
-        if e_list != None:
-            for e in e_list:
-                component_edges.append(e)
-    for i in c:
-        e_list = g.return_edges(i, i)
-        if e_list != None:
-            for e in e_list:
-                component_edges.append(e)
-    return component_edges
 
 
 def calculate_seg_length(e, g):  # calculate segment length of segment edge e
@@ -591,14 +520,7 @@ def printEulerUtil(g, u, prev, chrom):  # find Eulerian path or circuts in graph
     return [u]
 
 
-def detect_segment_vertices(component,
-                            edges):  # this function return those nodes which are telomere part (start and end of chromosome or no any edge like R or SV edge connect to them)
-    v = set()
-    for e in edges:
-        if e[3] != 'S':
-            v.add(e[0])
-            v.add(e[1])
-    return sorted(list(set(component) - v))
+
 
 
 def detect_segment_odd_degree(component, component_edges):  # detect vertices with odd degree
@@ -699,7 +621,7 @@ def printEulerTour(component, component_edges, g, centro):  # Find Eulerian path
             else:
                 a = printEulerUtil(g2, odd_vertices[save_index + 1], -1, g.return_node(odd_vertices[save_index]).chromosome)
 
-    print(g2.edges)
+    print("for zhaoyang",g2.edges)
     g2.print_node()
     print('Answer', a)
     return a
@@ -755,16 +677,7 @@ def detect_receprical_translocation(sv, xmap, smap):  # sometimes one of these r
     return False, None
 
 
-def check_non_centromeric_path(p, g, centro):
-    count = 0
-    for i in range(0, len(p) - 1, 2):
-        u = g.return_node(p[i])
-        v = g.return_node(p[i + 1])
-        if u.chromosome == v.chromosome:
-            # if (min(u.pos,v.pos)< min(centro['chr'+str(u.chromosome)]) and max(u.pos, v.pos)> min(centro['chr'+str(u.chromosome)])) or (min(u.pos,v.pos)< max(centro['chr'+str(u.chromosome)]) and max(u.pos, v.pos)> max(centro['chr'+str(u.chromosome)])):
-            if is_overlapping(min(u.pos, v.pos), max(u.pos, v.pos), min(centro['chr' + str(u.chromosome)]), max(centro['chr' + str(u.chromosome)])):
-                count += 1
-    return count
+
 
 
 def reverse_path(path):
@@ -956,8 +869,6 @@ def cn_in_mask_N_region(chromosome, start, end, cop, centro):
     return 2
 
 
-def is_overlapping(start1, end1, start2, end2):
-    return start1 <= end2 and start2 <= end1
 
 
 def merge_segments_all_seg_smap(segments, all_seg, smap, centro):
@@ -987,6 +898,7 @@ def main():
     parser.add_argument("-centro", "--centro", help="path to file contains centromere coordinates", required=False)
     parser.add_argument("-n", "--name", help="output name", required=True)
     parser.add_argument("-o", "--output", help="path to output dir", required=True)
+    parser.add_argument("-cyto", "--cyto", help="path to file contains cytoband coordinates", required=False)
     args = parser.parse_args()
     if args.centro is not None:  # this will parse centromere region. It can be hard coded.
         centro = parse_centro(args.centro)
@@ -1296,8 +1208,8 @@ def main():
     Plot_graph(g, file, name, centro)
     connected_components = find_connected_components(g)
     for component in connected_components:
-        # if 142 in component:
-        component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
+        if 14 in component:
+            component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
     Plot_graph(g, file2, name, centro)
     paths = []
@@ -1308,18 +1220,92 @@ def main():
     os.makedirs(args.output + '/postILP_components/', exist_ok=True)
     for component in connected_components:
         component_metadata[component_counter] = component
-        # if 142 in component:
-        component_edges = return_all_edges_in_cc(component, g)
-        print(component)
-        print(component_edges)
-        out_file = args.output + '/postILP_components/' + args.name + ".postILP_component_{}.txt".format(component_counter)
-        with open(out_file, 'w') as fp_write:
-            fp_write.write(str(component) + '\n')
-            for edge_itr in component_edges:
-                fp_write.write(str(edge_itr) + '\n')
+        if 14 in component:
+            component_edges = return_all_edges_in_cc(component, g)
+            print(component)
+            print(component_edges)
+            out_file = args.output + '/postILP_components/' + args.name + ".postILP_component_{}.txt".format(component_counter)
+            with open(out_file, 'w') as fp_write:
+                fp_write.write(str(component) + '\n')
+                for edge_itr in component_edges:
+                    fp_write.write(str(edge_itr) + '\n')
 
-        paths.append(printEulerTour(component, component_edges, g, centro))
-        component_counter += 1
+            paths.append(printEulerTour(component, component_edges, g, centro))
+            component_counter += 1
+    ################# JOEY's Files ###############################
+    iscn_output = args.output+'/'+ args.name + '_ISCN' + '.txt'
+    cytoband_filtered = read_in_cyto(args.cyto)
+    node_to_map_dict, node_to_smap_dict = node_to_map(svs, xmap, g)
+    path_map = {}
+    smap_frames = []
+    with open(output , 'w') as f :
+        f.write('Segment\tNumber\tChromosome\tStart\tEnd\tStartNode\tEndNode\tMapIDs\tSmapIDs\n')
+        number = 1
+        for i in range(0,len(g.vertices),2):
+            v = g.vertices[i]
+            u = g.vertices[i+1]
+            mapids = return_mapids(v.id,u.id,node_to_map_dict)
+            smapids = return_mapids(v.id,u.id,node_to_smap_dict)
+            f.write('Segment\t{id}\t{chrom}\t{start}\t{end}\t{snode}\t{enode}\t{mapids}\t{smapids}\n'.format(id = number, chrom = v.chromosome, start= v.pos, end= u.pos, snode = v.id, enode = u.id, mapids=mapids, smapids=smapids))
+            p_n = str(number)
+            smap_frames.append(smap_to_segment(p_n, smapids, smap))
+            if p_n not in path_map:
+                path_map[p_n] = 'chr{}:{}-{}'.format(v.chromosome,v.pos,u.pos)
+            number += 1
+        c = 1
+        for p in paths:
+            print(p)
+            # structures, scores in convert_path_to_segment(p,g,centro)
+            structures, scores = convert_path_to_segment(p,g,centro)
+            print(structures)
+            for jj in range(len(structures)):
+            # for structure,scores in convert_path_to_segment(p,g,centro):
+                structure = structures[jj]
+                merged_coords,iscn_coords = convert_path(structure, path_map, cytoband_filtered)
+                f.write('Path'+str(c)+ ' = '+structure+'\n')
+                f.write('Path'+str(c)+ ' = '+merged_coords+'\n')
+                f.write('Path'+str(c)+ ' = '+iscn_coords+'\n')
+                c+=1
+    sv_tuples_set = find_sv_node_edges(svs, xmap, g)
+    segs_list = associate_segments_to_svs(paths, g ,sv_tuples_set, node_to_smap_dict,centro)
+    subset = [x for x in smap_frames if isinstance(x,pd.DataFrame)]
+    subset_smap_frame = pd.concat(subset)
+    subset_smap_frame['Paths']= subset_smap_frame.apply(lambda x: [], axis=1)
+    subset_smap_frame.index.name = 'Segments'
+    subset_smap_frame.reset_index(inplace=True)
+    for segment in segs_list:
+        matching_rows = subset_smap_frame[subset_smap_frame['Segments'] == segment[0]]
+        if not matching_rows.empty:
+            idx = matching_rows.index[0]
+            subset_smap_frame.at[idx,'Paths'].append(segment[1])
+    node_to_map_dict,_ = node_to_map(svs, xmap, g)
+    path_map = {}
+    with open(iscn_output, 'w') as f :
+        number = 1
+        for i in range(0,len(g.vertices),2):
+            v = g.vertices[i]
+            u = g.vertices[i+1]
+            mapids = return_mapids(v.id,u.id,node_to_map_dict)
+            p_n = str(number)
+            if p_n not in path_map:
+                path_map[p_n] = 'chr{}:{}-{}'.format(v.chromosome,v.pos,u.pos)
+            number += 1
+        c = 1
+        for p in paths:
+            structures,scores = convert_path_to_segment(p,g,centro)
+            # for structure,scores in convert_path_to_segment(p,g,centro):
+            for jj in range(len(structures)):
+                structure = structures[jj]
+                split_structure = structure.split()
+                segments_list = ["Segment {}".format(x.replace('-','').replace('+','')) for x in split_structure]
+                path = f"Path {c}"
+                merged_coords,iscn_coords = convert_path(structure, path_map, cytoband_filtered)
+                f.write('Path'+str(c)+ ' = '+iscn_coords+'\n')
+                c+=1
+    sv_output = args.output + '/' + args.name +'_smap_segments.txt'
+    subset_smap_frame.to_csv(sv_output,index=False)
+    ############################################################
+
     metadata_file = args.output + '/postILP_components/' + args.name + ".postILP.metadata.txt"
     with open(metadata_file, 'w') as fp_write:
         for key, value in component_metadata.items():
