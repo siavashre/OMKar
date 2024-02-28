@@ -77,7 +77,7 @@ def detect_segment_vertices(component,
                             edges):  # this function return those nodes which are telomere part (start and end of chromosome or no any edge like R or SV edge connect to them)
     v = set()
     for e in edges:
-        if e[3] != 'S':
+        if e[3] == 'R':
             v.add(e[0])
             v.add(e[1])
     return sorted(list(set(component) - v))
