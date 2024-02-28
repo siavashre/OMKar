@@ -1208,7 +1208,7 @@ def main():
     Plot_graph(g, file, name, centro)
     connected_components = find_connected_components(g)
     for component in connected_components:
-        if 14 in component:
+        # if 14 in component:
             component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
     Plot_graph(g, file2, name, centro)
@@ -1220,18 +1220,18 @@ def main():
     os.makedirs(args.output + '/postILP_components/', exist_ok=True)
     for component in connected_components:
         component_metadata[component_counter] = component
-        if 14 in component:
-            component_edges = return_all_edges_in_cc(component, g)
-            print(component)
-            print(component_edges)
-            out_file = args.output + '/postILP_components/' + args.name + ".postILP_component_{}.txt".format(component_counter)
-            with open(out_file, 'w') as fp_write:
-                fp_write.write(str(component) + '\n')
-                for edge_itr in component_edges:
-                    fp_write.write(str(edge_itr) + '\n')
+        # if 14 in component:
+        component_edges = return_all_edges_in_cc(component, g)
+        print(component)
+        print(component_edges)
+        out_file = args.output + '/postILP_components/' + args.name + ".postILP_component_{}.txt".format(component_counter)
+        with open(out_file, 'w') as fp_write:
+            fp_write.write(str(component) + '\n')
+            for edge_itr in component_edges:
+                fp_write.write(str(edge_itr) + '\n')
 
-            paths.append(printEulerTour(component, component_edges, g, centro))
-            component_counter += 1
+        paths.append(printEulerTour(component, component_edges, g, centro))
+        component_counter += 1
     ################# JOEY's Files ###############################
     iscn_output = args.output+'/'+ args.name + '_ISCN' + '.txt'
     cytoband_filtered = read_in_cyto(args.cyto)
