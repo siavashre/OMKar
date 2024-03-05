@@ -562,7 +562,7 @@ def scoring_paths(path_list, segment_vertices, g, centro):
     return best_path
 
 
-def printEulerTour(component, component_edges, g, centro):  # Find Eulerian path/circuts in connected components in graph g
+def printEulerTour(component, component_edges, g, centro, output_file):  # Find Eulerian path/circuts in connected components in graph g
     g2 = Graph()  # create new graph g2
     g2.edges = component_edges
     for v in component:
@@ -621,10 +621,15 @@ def printEulerTour(component, component_edges, g, centro):  # Find Eulerian path
             else:
                 a = printEulerUtil(g2, odd_vertices[save_index + 1], -1, g.return_node(odd_vertices[save_index]).chromosome)
 
-    print("for zhaoyang",g2.edges)
+    print('all edges with dummy: ', g2.edges)
     g2.print_node()
     print('Answer', a)
-    return a
+
+    with open(output_file, 'w') as fp_write:
+        for edge in g2.edges:
+            fp_write.write(str(edge) + '\n')
+
+    return a, g2.edges
 
 
 def detect_del_dup_cn(chromosome, start, end, segments):  # this function detect that for a deletion or duplication, do we have CNV call as well or no
@@ -784,29 +789,106 @@ def fix_dicentric(paths, scores, g, centro):
     return ans_path, ans_score
 
 
-def convert_path_to_segment(p, g, centro):  # this is important function that convert Eulerion path with vertices ID to segment path.
+def convert_path_to_segment(p, component_edges, centro):  # this is important function that convert Eulerion path with vertices ID to segment path.
     component = list(set(p))
-    component_edges = return_all_edges_in_cc(component, g)
-    segment_vertices = detect_segment_vertices(component, component_edges)
-    ans = []
-    temp = [p[0]]
-    scores_path = []
-    for i in range(1, len(p) - 1):
-        if p[i] in segment_vertices:  # and p[i-1]==p[i+1]:
-            temp.append(p[i])
-            ans.append(temp)
-            scores_path.append(check_non_centromeric_path(temp, g, centro))
-            if p[i - 1] == p[i + 1]:
-                temp = [p[i]]
-            else:
-                temp = []
+
+    ## form dict for all cc edges to be efficient in search
+    component_edge_dict = {}  # {(node1, node2, type)}: multiplicity
+    for edge_itr in component_edges:
+        component_edge_dict[(edge_itr[0], edge_itr[1], edge_itr[3])] = edge_itr[2]
+
+    print(component_edge_dict)
+
+    ## relabel the edges
+    edge_labels = []
+
+    def append_and_reduce_multiplicity(node1, node2, edge_type):
+        edge_labels.append(edge_type)
+        if component_edge_dict[(node1, node2, edge_type)] == 1:
+            component_edge_dict.pop((node1, node2, edge_type))
         else:
-            temp.append(p[i])
-    temp.append(p[-1])
-    ans.append(temp)
-    scores_path.append(check_non_centromeric_path(temp, g, centro))
+            component_edge_dict[(node1, node2, edge_type)] -= 1
+
+    # skip the first one because it is always Segment edge
+    if (p[0], p[1], 'S') in component_edge_dict:
+        append_and_reduce_multiplicity(p[0], p[1], 'S')
+    elif (p[1], p[0], 'S') in component_edge_dict:
+        append_and_reduce_multiplicity(p[1], p[0], 'S')
+    else:
+        raise RuntimeError('initialization error')
+
+    for node_idx in range(1, len(p) - 1):
+        current_node = p[node_idx]
+        next_node = p[node_idx + 1]
+        previous_edge_type = edge_labels[node_idx - 1]
+        # if previous is transition (SV/REF), next must be SEG; if previous is SEG, prefer next to be transition
+        if previous_edge_type in ['SV', 'R', 'D']:
+            if (current_node, next_node, 'S') not in component_edge_dict and (next_node, current_node, 'S') not in component_edge_dict:
+                # print(component_edge_dict)
+                # print(edge_labels)
+                raise RuntimeError('illegal follow up of SV/R, no S present')
+            else:
+                if (current_node, next_node, 'S') in component_edge_dict:
+                    append_and_reduce_multiplicity(current_node, next_node, 'S')
+                elif (next_node, current_node, 'S') in component_edge_dict:
+                    append_and_reduce_multiplicity(next_node, current_node, 'S')
+        elif previous_edge_type in 'S':
+            if (current_node, next_node, 'R') in component_edge_dict:
+                append_and_reduce_multiplicity(current_node, next_node, 'R')
+            elif (next_node, current_node, 'R') in component_edge_dict:
+                append_and_reduce_multiplicity(next_node, current_node, 'R')
+            elif (current_node, next_node, 'SV') in component_edge_dict:
+                append_and_reduce_multiplicity(current_node, next_node, 'SV')
+            elif (next_node, current_node, 'SV') in component_edge_dict:
+                append_and_reduce_multiplicity(next_node, current_node, 'SV')
+            elif (current_node, next_node, 'D') in component_edge_dict:
+                append_and_reduce_multiplicity(current_node, next_node, 'D')
+            elif (next_node, current_node, 'D') in component_edge_dict:
+                append_and_reduce_multiplicity(next_node, current_node, 'D')
+            elif (current_node, next_node, 'S') in component_edge_dict:
+                append_and_reduce_multiplicity(current_node, next_node, 'S')
+            elif (next_node, current_node, 'S') in component_edge_dict:
+                append_and_reduce_multiplicity(next_node, current_node, 'S')
+            else:
+                raise RuntimeError('illegal follow up of S, no SV/R/D/S edge available (ie. no edge available)')
+
+    ## split into paths: split whenever two adjacent edge types are both S
+    # collect all node_idx that have both edges as S
+    split_node_indices = []
+    for edge_idx in range(1, len(edge_labels)):
+        current_label = edge_labels[edge_idx]
+        previous_label = edge_labels[edge_idx - 1]
+
+        if current_label == 'S' and previous_label == 'S':
+            split_node_indices.append(edge_idx)
+
+    # split
+    print('split node indices: ', split_node_indices)
+    paths = []
+    previous_node_idx_cutoff = 0
+    for split_node_idx in split_node_indices:
+        current_path = [p[node_idx] for node_idx in range(previous_node_idx_cutoff, split_node_idx + 1)]
+        paths.append(current_path)
+        previous_node_idx_cutoff = split_node_idx  # we want this node to be present in both the splitted paths, end of path1 + start of path2
+    last_path = [p[node_idx] for node_idx in range(previous_node_idx_cutoff, len(p))]
+    paths.append(last_path)
+
+    print('debug paths separation: ', paths)
+    # merge first and last path for cycle
+    if p[0] == p[-1]:
+        if edge_labels[0] != 'S' or edge_labels[-1] != 'S':
+            # the start node is meant to be split if both are S
+            new_path = paths[-1]
+            for node_idx in range(1, len(paths[0])):
+                # do not repeat the annealed node
+                new_path.append(paths[0][node_idx])
+            paths.pop(0)
+            paths.pop(len(paths) - 1)
+            paths.append(new_path)
+
+    # convert to segment names
     ans2 = []
-    for p in ans:
+    for p in paths:
         temp = ''
         for i in range(0, len(p) - 1, 2):
             # print('as', i, len(p), p)
@@ -817,7 +899,7 @@ def convert_path_to_segment(p, g, centro):  # this is important function that co
             temp = temp + str(seg_number) + direction + ' '
         ans2.append(temp)
 
-    return fix_dicentric(ans2, scores_path, g, centro)
+    return ans2, [-1 for _ in range(len(ans2))]
 
 
 def check_exiest_call(chromosome, start, end, type, all_seg):  # if we have a call like gain or loss  but in CNV it is filtered retrive it
@@ -1213,14 +1295,16 @@ def main():
     connected_components = find_connected_components(g)
     Plot_graph(g, file2, name, centro)
     paths = []
+    edges_with_dummy = []
 
     import os
     component_counter = 0
     component_metadata = {}
     os.makedirs(args.output + '/postILP_components/', exist_ok=True)
+    os.makedirs(args.output + '/all_edges_with_dummies/', exist_ok=True)
     for component in connected_components:
         component_metadata[component_counter] = component
-        # if 14 in component:
+        # if 142 in component:
         component_edges = return_all_edges_in_cc(component, g)
         print(component)
         print(component_edges)
@@ -1230,86 +1314,89 @@ def main():
             for edge_itr in component_edges:
                 fp_write.write(str(edge_itr) + '\n')
 
-        paths.append(printEulerTour(component, component_edges, g, centro))
+        out_file = args.output + '/all_edges_with_dummies/' + args.name + ".with_dummies_component_{}.txt".format(component_counter)
+        euler_tour, component_edges_with_dummies = printEulerTour(component, component_edges, g, centro, out_file)
+        paths.append(euler_tour)
+        edges_with_dummy.append(component_edges_with_dummies)
         component_counter += 1
-    ################# JOEY's Files ###############################
-    iscn_output = args.output+'/'+ args.name + '_ISCN' + '.txt'
-    cytoband_filtered = read_in_cyto(args.cyto)
-    node_to_map_dict, node_to_smap_dict = node_to_map(svs, xmap, g)
-    path_map = {}
-    smap_frames = []
-    with open(output , 'w') as f :
-        f.write('Segment\tNumber\tChromosome\tStart\tEnd\tStartNode\tEndNode\tMapIDs\tSmapIDs\n')
-        number = 1
-        for i in range(0,len(g.vertices),2):
-            v = g.vertices[i]
-            u = g.vertices[i+1]
-            mapids = return_mapids(v.id,u.id,node_to_map_dict)
-            smapids = return_mapids(v.id,u.id,node_to_smap_dict)
-            f.write('Segment\t{id}\t{chrom}\t{start}\t{end}\t{snode}\t{enode}\t{mapids}\t{smapids}\n'.format(id = number, chrom = v.chromosome, start= v.pos, end= u.pos, snode = v.id, enode = u.id, mapids=mapids, smapids=smapids))
-            p_n = str(number)
-            smap_frames.append(smap_to_segment(p_n, smapids, smap))
-            if p_n not in path_map:
-                path_map[p_n] = 'chr{}:{}-{}'.format(v.chromosome,v.pos,u.pos)
-            number += 1
-        c = 1
-        for p in paths:
-            print(p)
-            # structures, scores in convert_path_to_segment(p,g,centro)
-            structures, scores = convert_path_to_segment(p,g,centro)
-            print(structures)
-            for jj in range(len(structures)):
-            # for structure,scores in convert_path_to_segment(p,g,centro):
-                structure = structures[jj]
-                merged_coords,iscn_coords = convert_path(structure, path_map, cytoband_filtered)
-                f.write('Path'+str(c)+ ' = '+structure+'\n')
-                f.write('Path'+str(c)+ ' = '+merged_coords+'\n')
-                f.write('Path'+str(c)+ ' = '+iscn_coords+'\n')
-                c+=1
-    sv_tuples_set = find_sv_node_edges(svs, xmap, g)
-    segs_list = associate_segments_to_svs(paths, g ,sv_tuples_set, node_to_smap_dict,centro)
-    subset = [x for x in smap_frames if isinstance(x,pd.DataFrame)]
-    subset_smap_frame = pd.concat(subset)
-    subset_smap_frame['Paths']= subset_smap_frame.apply(lambda x: [], axis=1)
-    subset_smap_frame.index.name = 'Segments'
-    subset_smap_frame.reset_index(inplace=True)
-    for segment in segs_list:
-        matching_rows = subset_smap_frame[subset_smap_frame['Segments'] == segment[0]]
-        if not matching_rows.empty:
-            idx = matching_rows.index[0]
-            subset_smap_frame.at[idx,'Paths'].append(segment[1])
-    node_to_map_dict,_ = node_to_map(svs, xmap, g)
-    path_map = {}
-    with open(iscn_output, 'w') as f :
-        number = 1
-        for i in range(0,len(g.vertices),2):
-            v = g.vertices[i]
-            u = g.vertices[i+1]
-            mapids = return_mapids(v.id,u.id,node_to_map_dict)
-            p_n = str(number)
-            if p_n not in path_map:
-                path_map[p_n] = 'chr{}:{}-{}'.format(v.chromosome,v.pos,u.pos)
-            number += 1
-        c = 1
-        for p in paths:
-            structures,scores = convert_path_to_segment(p,g,centro)
-            # for structure,scores in convert_path_to_segment(p,g,centro):
-            for jj in range(len(structures)):
-                structure = structures[jj]
-                split_structure = structure.split()
-                segments_list = ["Segment {}".format(x.replace('-','').replace('+','')) for x in split_structure]
-                path = f"Path {c}"
-                merged_coords,iscn_coords = convert_path(structure, path_map, cytoband_filtered)
-                f.write('Path'+str(c)+ ' = '+iscn_coords+'\n')
-                c+=1
-    sv_output = args.output + '/' + args.name +'_smap_segments.txt'
-    subset_smap_frame.to_csv(sv_output,index=False)
-    ############################################################
-
     metadata_file = args.output + '/postILP_components/' + args.name + ".postILP.metadata.txt"
     with open(metadata_file, 'w') as fp_write:
         for key, value in component_metadata.items():
             fp_write.write("{}\t{}\n".format(key, value))
+
+    ################# JOEY's Files ###############################
+    # iscn_output = args.output+'/'+ args.name + '_ISCN' + '.txt'
+    # cytoband_filtered = read_in_cyto(args.cyto)
+    # node_to_map_dict, node_to_smap_dict = node_to_map(svs, xmap, g)
+    # path_map = {}
+    # smap_frames = []
+    # with open(output , 'w') as f :
+    #     f.write('Segment\tNumber\tChromosome\tStart\tEnd\tStartNode\tEndNode\tMapIDs\tSmapIDs\n')
+    #     number = 1
+    #     for i in range(0,len(g.vertices),2):
+    #         v = g.vertices[i]
+    #         u = g.vertices[i+1]
+    #         mapids = return_mapids(v.id,u.id,node_to_map_dict)
+    #         smapids = return_mapids(v.id,u.id,node_to_smap_dict)
+    #         f.write('Segment\t{id}\t{chrom}\t{start}\t{end}\t{snode}\t{enode}\t{mapids}\t{smapids}\n'.format(id = number, chrom = v.chromosome, start= v.pos, end= u.pos, snode = v.id, enode = u.id, mapids=mapids, smapids=smapids))
+    #         p_n = str(number)
+    #         smap_frames.append(smap_to_segment(p_n, smapids, smap))
+    #         if p_n not in path_map:
+    #             path_map[p_n] = 'chr{}:{}-{}'.format(v.chromosome,v.pos,u.pos)
+    #         number += 1
+    #     c = 1
+    #     for path_idx, p in enumerate(paths):
+    #         print(p)
+    #         # structures, scores in convert_path_to_segment(p,g,centro)
+    #         structures, scores = convert_path_to_segment(p, edges_with_dummy[path_idx], centro)
+    #         print(structures)
+    #         for jj in range(len(structures)):
+    #         # for structure,scores in convert_path_to_segment(p,g,centro):
+    #             structure = structures[jj]
+    #             merged_coords,iscn_coords = convert_path(structure, path_map, cytoband_filtered)
+    #             f.write('Path'+str(c)+ ' = '+structure+'\n')
+    #             f.write('Path'+str(c)+ ' = '+merged_coords+'\n')
+    #             f.write('Path'+str(c)+ ' = '+iscn_coords+'\n')
+    #             c+=1
+    # sv_tuples_set = find_sv_node_edges(svs, xmap, g)
+    # segs_list = associate_segments_to_svs(paths, g ,sv_tuples_set, node_to_smap_dict,centro)
+    # subset = [x for x in smap_frames if isinstance(x,pd.DataFrame)]
+    # subset_smap_frame = pd.concat(subset)
+    # subset_smap_frame['Paths']= subset_smap_frame.apply(lambda x: [], axis=1)
+    # subset_smap_frame.index.name = 'Segments'
+    # subset_smap_frame.reset_index(inplace=True)
+    # for segment in segs_list:
+    #     matching_rows = subset_smap_frame[subset_smap_frame['Segments'] == segment[0]]
+    #     if not matching_rows.empty:
+    #         idx = matching_rows.index[0]
+    #         subset_smap_frame.at[idx,'Paths'].append(segment[1])
+    # node_to_map_dict,_ = node_to_map(svs, xmap, g)
+    # path_map = {}
+    # with open(iscn_output, 'w') as f :
+    #     number = 1
+    #     for i in range(0,len(g.vertices),2):
+    #         v = g.vertices[i]
+    #         u = g.vertices[i+1]
+    #         mapids = return_mapids(v.id,u.id,node_to_map_dict)
+    #         p_n = str(number)
+    #         if p_n not in path_map:
+    #             path_map[p_n] = 'chr{}:{}-{}'.format(v.chromosome,v.pos,u.pos)
+    #         number += 1
+    #     c = 1
+    #     for path_idx, p in enumerate(paths):
+    #         structures,scores = convert_path_to_segment(p, edges_with_dummy[path_idx], centro)
+    #         # for structure,scores in convert_path_to_segment(p,g,centro):
+    #         for jj in range(len(structures)):
+    #             structure = structures[jj]
+    #             split_structure = structure.split()
+    #             segments_list = ["Segment {}".format(x.replace('-','').replace('+','')) for x in split_structure]
+    #             path = f"Path {c}"
+    #             merged_coords,iscn_coords = convert_path(structure, path_map, cytoband_filtered)
+    #             f.write('Path'+str(c)+ ' = '+iscn_coords+'\n')
+    #             c+=1
+    # sv_output = args.output + '/' + args.name +'_smap_segments.txt'
+    # subset_smap_frame.to_csv(sv_output,index=False)
+    ############################################################
 
     # print(paths)
     # write in the output
@@ -1323,8 +1410,8 @@ def main():
                                                                                         enode=u.id))
             number += 1
         c = 1
-        for p in paths:
-            structures, scores = convert_path_to_segment(p, g, centro)
+        for path_idx, p in enumerate(paths):
+            structures, scores = convert_path_to_segment(p, edges_with_dummy[path_idx], centro)
             for jj in range(len(structures)):
                 structure = structures[jj]
                 if structure.endswith(' '):
