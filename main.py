@@ -306,7 +306,7 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
     sv_sum = 0  # sum all variables for SV edges
     cn_tune = 0  # sum all variables for changing CN (tuning CN)
     component_edges = return_all_edges_in_cc(component, g)
-    # print('Siavash', component_edges)
+    print('Siavash', component_edges)
     for i in range(len(component_edges)):
         e = component_edges[i]
         if e[3] != 'S':  # in it is not Segment edge
@@ -331,7 +331,7 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
                     Lp_prob += component_edges[i][1] >= 1
         else:  # if it is Segment edge
             component_edges[i] = [e, p.LpVariable('Y' + str(i), cat=p.LpInteger),
-                                  p.LpVariable('Z' + str(i), cat=p.LpInteger)]  # variable Y_i is for tuning CN of each segment if we need to change the CN
+                                  p.LpVariable('Z' + str(i), cat=p.LpInteger)]  # variable Y_i is for tuning CN of each segment if we need to change the CN. Z = absolute value of Y
             print('Y' + str(i), e)
             # For having abselute value in ILP for we need to define variable Z as well. 
             Lp_prob += component_edges[i][2] >= -component_edges[i][1]  # this is used for defining abselute value
@@ -339,7 +339,7 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
             # the following if is a condition for setting the limit on how much the CN can be changed for segment with length less than 1Mbp it is one
             if calculate_seg_length(e, g)[0] <= 1000000:
                 Lp_prob += component_edges[i][2] <= 1
-            else:  # for rest it is 25% of their length
+            else:  # for rest it is 25% of their CN
                 Lp_prob += component_edges[i][2] <= math.ceil(e[2] / 4)
     for v in component:
         v_edges = []  # all edges conntigin to node v
@@ -373,11 +373,13 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
                 else:
                     cn_tune += v_edges[0][2] * calculate_seg_length(v_edges[0][0], g)[1]
     # Just for debug
-    # print('obj', objective)
-    # print('Sv_sum', sv_sum)
+    print('obj', objective)
+    print('Sv_sum', sv_sum)
+    print('CN_tune', cn_tune)
     # objective = 10 * objective  - 9 * sv_sum + 15 * cn_tune
-    objective = 15 * objective - 9 * sv_sum + 5 * cn_tune
-    # print('obj', objective)
+    objective = 10 * objective - 9 * sv_sum + 9 * cn_tune
+    objective =  objective -  sv_sum +  cn_tune
+    print('obj', objective)
     Lp_prob += objective
     print(Lp_prob)
     status = Lp_prob.solve()
@@ -1290,7 +1292,7 @@ def main():
     Plot_graph(g, file, name, centro)
     connected_components = find_connected_components(g)
     for component in connected_components:
-        # if 14 in component:
+        # if 102 in component:
             component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
     Plot_graph(g, file2, name, centro)
@@ -1304,7 +1306,7 @@ def main():
     os.makedirs(args.output + '/all_edges_with_dummies/', exist_ok=True)
     for component in connected_components:
         component_metadata[component_counter] = component
-        # if 142 in component:
+        # if 102 in component:
         component_edges = return_all_edges_in_cc(component, g)
         print(component)
         print(component_edges)
