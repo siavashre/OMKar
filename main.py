@@ -156,12 +156,12 @@ def rev_dir(a):
 def find_start_end(prev_point, start, label_list):
     ans = []
     for i in label_list:
-        if prev_point < i < start:
+        if prev_point <= i < start:
             ans.append(i)
     if len(ans) < 2:
         return 0, 0
     else:
-        return min(ans), ans[-1]
+        return min(ans)+1, start-1
 
 
 def next_prev_label(chromosome, pos):  # not used can be deleted
