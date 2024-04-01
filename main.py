@@ -656,7 +656,7 @@ def detect_del_dup_cn(chromosome, start, end, segments):  # this function detect
 
 
 def detect_duplicatioon_inversion_cn(sv, xmap, segments):  # same as above for duplication calls.
-    window_lim = 50000
+    window_lim = 200000
     node_dir1, node_dir2 = detect_sv_directions(sv, xmap)
     if node_dir1 == 'T' and node_dir2 == 'T':  # right fold back
         for i, s in enumerate(segments):
