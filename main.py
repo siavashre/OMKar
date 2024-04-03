@@ -661,9 +661,13 @@ def detect_duplicatioon_inversion_cn(sv, xmap, segments):  # same as above for d
     if node_dir1 == 'T' and node_dir2 == 'T':  # right fold back
         for i, s in enumerate(segments):
             if int(s.chromosome) == int(sv.ref_c_id1):  # only compared with the next contigs
-                if abs(s.end - sv.ref_end) < window_lim and (
-                        s.int_cn != segments[(i + 1) % len(segments)].int_cn and s.chromosome == segments[(i + 1) % len(segments)].chromosome):
-                    return True, s.end
+                if abs(s.end - sv.ref_end) < window_lim:
+                    if (s.chromosome == segments[(i + 1) % len(segments)].chromosome):
+                        if (s.int_cn != segments[(i + 1) % len(segments)].int_cn ):
+                            return True, s.end
+                    else:
+                        if (s.int_cn != segments[(i - 1) % len(segments)].int_cn ) and (s.chromosome == segments[(i - 1) % len(segments)].chromosome):
+                            return True, s.end
     elif node_dir1 == 'H' and node_dir2 == 'H':  # left foldback
         for i, s in enumerate(segments):  # compared with prev contigs
             if int(s.chromosome) == int(sv.ref_c_id1):
