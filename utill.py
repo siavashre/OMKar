@@ -4,6 +4,8 @@ import itertools
 def detect_sv_directions(sv, xmap):  # this function detect the direction of one smap like H/T to H/T. #need to be check Contain bug?
     if sv.sv_type == 'inversion_paired':  # for inversion_paired always return T to T
         return 'T', 'T'
+    elif sv.sv_type == 'duplication':  # for duplication always return T to T
+        return 'H', 'T'
     dir1, dir2 = '', ''
     xmap_id1 = sv.xmap_id1
     xmap_id2 = sv.xmap_id2
