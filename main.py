@@ -364,9 +364,21 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
                             cn_tune += e[2] * calculate_seg_length(e[0], g)[1] * 3  # more coeeficient for something has called already
                         else:
                             cn_tune += e[2] * calculate_seg_length(e[0], g)[1]
+                    aa = p.LpVariable('A' + str(v), lowBound=0, cat=p.LpInteger)
+                    print('A' + str(v), aa)
+                    bb = p.LpVariable('B' + str(v), lowBound=0, cat=p.LpBinary) #This variable shows if sum dgree this vertex is odd or no
+                    print('B' + str(v), bb)
+                    Lp_prob += cond + e[0][2] - 2 * aa == bb
                     objective = objective + e[0][2] - e[1]  # updating the Objective Function
+                    objective = objective + bb
         else:
-            objective = objective + v_edges[0][0][2]
+            objective = objective + v_edges[0][0][2] - v_edges[0][1]
+            aa = p.LpVariable('A' + str(v), lowBound=0, cat=p.LpInteger)
+            print('A' + str(v), aa)
+            bb = p.LpVariable('B' + str(v), lowBound=0, cat=p.LpBinary) #This variable shows if sum dgree this vertex is odd or no
+            print('B' + str(v), bb)
+            Lp_prob += v_edges[0][0][2] - v_edges[0][1] - 2 * aa == bb
+            objective = objective +  bb
             if calculate_seg_length(v_edges[0][0], g)[0] > 50000:  # for segment less than 50 Kbp no penalty applied for tuning segment CN
                 if v_edges[0][2] != 2:
                     cn_tune += v_edges[0][2] * calculate_seg_length(v_edges[0][0], g)[1] * 3
@@ -1301,7 +1313,7 @@ def main():
     Plot_graph(g, file, name, centro)
     connected_components = find_connected_components(g)
     for component in connected_components:
-        # if 22 in component:
+        # if 1 in component:
             component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
     Plot_graph(g, file2, name, centro)
@@ -1314,22 +1326,22 @@ def main():
     os.makedirs(args.output + '/postILP_components/', exist_ok=True)
     os.makedirs(args.output + '/all_edges_with_dummies/', exist_ok=True)
     for component in connected_components:
-        component_metadata[component_counter] = component
-        # if 102 in component:
-        component_edges = return_all_edges_in_cc(component, g)
-        print(component)
-        print(component_edges)
-        out_file = args.output + '/postILP_components/' + args.name + ".postILP_component_{}.txt".format(component_counter)
-        with open(out_file, 'w') as fp_write:
-            fp_write.write(str(component) + '\n')
-            for edge_itr in component_edges:
-                fp_write.write(str(edge_itr) + '\n')
+            component_metadata[component_counter] = component
+        # if 1 in component:
+            component_edges = return_all_edges_in_cc(component, g)
+            print(component)
+            print(component_edges)
+            out_file = args.output + '/postILP_components/' + args.name + ".postILP_component_{}.txt".format(component_counter)
+            with open(out_file, 'w') as fp_write:
+                fp_write.write(str(component) + '\n')
+                for edge_itr in component_edges:
+                    fp_write.write(str(edge_itr) + '\n')
 
-        out_file = args.output + '/all_edges_with_dummies/' + args.name + ".with_dummies_component_{}.txt".format(component_counter)
-        euler_tour, component_edges_with_dummies = printEulerTour(component, component_edges, g, centro, out_file)
-        paths.append(euler_tour)
-        edges_with_dummy.append(component_edges_with_dummies)
-        component_counter += 1
+            out_file = args.output + '/all_edges_with_dummies/' + args.name + ".with_dummies_component_{}.txt".format(component_counter)
+            euler_tour, component_edges_with_dummies = printEulerTour(component, component_edges, g, centro, out_file)
+            paths.append(euler_tour)
+            edges_with_dummy.append(component_edges_with_dummies)
+            component_counter += 1
     metadata_file = args.output + '/postILP_components/' + args.name + ".postILP.metadata.txt"
     with open(metadata_file, 'w') as fp_write:
         for key, value in component_metadata.items():
