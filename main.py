@@ -986,7 +986,7 @@ def merge_segments_all_seg_smap(segments, all_seg, smap, centro):
         if sv.sv_type == 'deletion':  # and sv.ref_c_id1=='17':# and sv.ref_start > 20400000 and sv.ref_start < 21000000:
             a = 0
             for s in all_seg:
-                if sv.ref_c_id1 == s.chromosome and s.type.startswith('loss') and not s.type.endswith('masked') and s.width > 2 * limit:
+                if sv.ref_c_id1 == s.chromosome and s.type.startswith('loss') and not s.type.endswith('masked') and s.width > 100000: # why do we have 100,000 here?
                     if abs(s.start - min(sv.ref_start, sv.ref_end)) < limit and abs(s.end - max(sv.ref_start, sv.ref_end)) < limit:
                         if not is_overlapping(min(centro['chr' + str(sv.ref_c_id1)]), max(centro['chr' + str(sv.ref_c_id1)]), sv.ref_start, sv.ref_end):
                             ans.append(s)
