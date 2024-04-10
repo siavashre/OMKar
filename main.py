@@ -305,6 +305,7 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
     objective = 0  # variable for some of our objective
     sv_sum = 0  # sum all variables for SV edges
     cn_tune = 0  # sum all variables for changing CN (tuning CN)
+    odd_vertices_pen = 0
     component_edges = return_all_edges_in_cc(component, g)
     print('Siavash', component_edges)
     for i in range(len(component_edges)):
@@ -370,7 +371,8 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
                     print('B' + str(v), bb)
                     Lp_prob += cond + e[0][2] - 2 * aa == bb
                     objective = objective + e[0][2] - e[1]  # updating the Objective Function
-                    objective = objective + bb
+                    odd_vertices_pen = odd_vertices_pen + bb
+                    # objective = objective + bb
         else:
             objective = objective + v_edges[0][0][2] - v_edges[0][1]
             aa = p.LpVariable('A' + str(v), lowBound=0, cat=p.LpInteger)
@@ -378,7 +380,8 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
             bb = p.LpVariable('B' + str(v), lowBound=0, cat=p.LpBinary) #This variable shows if sum dgree this vertex is odd or no
             print('B' + str(v), bb)
             Lp_prob += v_edges[0][0][2] - v_edges[0][1] - 2 * aa == bb
-            objective = objective +  bb
+            # objective = objective +  bb
+            odd_vertices_pen = odd_vertices_pen + bb
             if calculate_seg_length(v_edges[0][0], g)[0] > 50000:  # for segment less than 50 Kbp no penalty applied for tuning segment CN
                 if v_edges[0][2] != 2:
                     cn_tune += v_edges[0][2] * calculate_seg_length(v_edges[0][0], g)[1] * 3
@@ -390,7 +393,7 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
     print('CN_tune', cn_tune)
     # objective = 10 * objective  - 9 * sv_sum + 15 * cn_tune
     objective = 10 * objective - 9 * sv_sum + 9 * cn_tune
-    objective =  objective -  sv_sum +  cn_tune
+    objective =  objective -  sv_sum +  cn_tune + odd_vertices_pen
     print('obj', objective)
     Lp_prob += objective
     print(Lp_prob)
@@ -978,7 +981,7 @@ def cn_in_mask_N_region(chromosome, start, end, cop, centro):
 
 def merge_segments_all_seg_smap(segments, all_seg, smap, centro):
     ans = []
-    limit = 50000
+    limit = 200000
     for sv in smap:
         if sv.sv_type == 'deletion':  # and sv.ref_c_id1=='17':# and sv.ref_start > 20400000 and sv.ref_start < 21000000:
             a = 0
