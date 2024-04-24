@@ -986,7 +986,7 @@ def merge_segments_all_seg_smap(segments, all_seg, smap, centro):
         if sv.sv_type == 'deletion':  # and sv.ref_c_id1=='17':# and sv.ref_start > 20400000 and sv.ref_start < 21000000:
             a = 0
             for s in all_seg:
-                if sv.ref_c_id1 == s.chromosome and s.type.startswith('loss') and not s.type.endswith('masked') and s.width > 100000: # why do we have 100,000 here?
+                if sv.ref_c_id1 == s.chromosome and s.type.startswith('loss') and not s.type.endswith('masked') and s.width > 200000: # why do we have 200,000 here?  # should be same number az search Min Seg Length #adserqa
                     if abs(s.start - min(sv.ref_start, sv.ref_end)) < limit and abs(s.end - max(sv.ref_start, sv.ref_end)) < limit:
                         if not is_overlapping(min(centro['chr' + str(sv.ref_c_id1)]), max(centro['chr' + str(sv.ref_c_id1)]), sv.ref_start, sv.ref_end):
                             ans.append(s)
@@ -1036,7 +1036,7 @@ def main():
         label_list = list(rcop[k].keys())
         for s in segments:
             if s.chromosome == k:
-                if s.width > 200000:  # if call has length greater than 200Kbp assume a segment
+                if s.width > 200000:  # if call has length greater than 200Kbp assume a segment # should be same number az search Min Seg Length #adserqa
                     seg_list.append(s)
         prev_point = list(rcop[k].keys())[0]
         if len(seg_list) == 0:  # create segment for start of chromosme
@@ -1153,9 +1153,10 @@ def main():
                         _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
                         svs.append(i)
                         print(i.line.strip())
-                    elif i.confidence >= 0.9 :
+                    elif i.confidence >= 0.98 :
                         # _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
                         svs.append(i)
+                        print(i.line.strip())
                         # print('Gerye', i.line.strip())
                 elif i.size > 500000 and abs(i.ref_end - i.ref_start) > 500000:  # this would be for insertion length more than 500Kbp
                     svs.append(i)
