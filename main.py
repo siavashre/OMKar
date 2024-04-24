@@ -981,7 +981,7 @@ def cn_in_mask_N_region(chromosome, start, end, cop, centro):
 
 def merge_segments_all_seg_smap(segments, all_seg, smap, centro):
     ans = []
-    limit = 200000
+    limit = 50000
     for sv in smap:
         if sv.sv_type == 'deletion':  # and sv.ref_c_id1=='17':# and sv.ref_start > 20400000 and sv.ref_start < 21000000:
             a = 0
@@ -1153,6 +1153,10 @@ def main():
                         _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
                         svs.append(i)
                         print(i.line.strip())
+                    elif i.confidence >= 0.9 :
+                        # _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
+                        svs.append(i)
+                        # print('Gerye', i.line.strip())
                 elif i.size > 500000 and abs(i.ref_end - i.ref_start) > 500000:  # this would be for insertion length more than 500Kbp
                     svs.append(i)
                     print(i.line.strip())
