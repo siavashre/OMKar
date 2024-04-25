@@ -815,7 +815,7 @@ def fix_dicentric(paths, scores, g, centro):
     return ans_path, ans_score
 
 
-def convert_path_to_segment(p, component_edges, centro):  # this is important function that convert Eulerion path with vertices ID to segment path.
+def convert_path_to_segment(p, component_edges, centro,g):  # this is important function that convert Eulerion path with vertices ID to segment path.
     component = list(set(p))
 
     ## form dict for all cc edges to be efficient in search
@@ -913,8 +913,10 @@ def convert_path_to_segment(p, component_edges, centro):  # this is important fu
             paths.append(new_path)
 
     # convert to segment names
+    scores_path = []
     ans2 = []
     for p in paths:
+        scores_path.append(check_non_centromeric_path(p,g, centro))
         temp = ''
         for i in range(0, len(p) - 1, 2):
             # print('as', i, len(p), p)
@@ -925,7 +927,8 @@ def convert_path_to_segment(p, component_edges, centro):  # this is important fu
             temp = temp + str(seg_number) + direction + ' '
         ans2.append(temp)
 
-    return ans2, [-1 for _ in range(len(ans2))]
+    # return ans2, [-1 for _ in range(len(ans2))]
+    return fix_dicentric(ans2, scores_path, g, centro)
 
 
 def check_exiest_call(chromosome, start, end, type, all_seg):  # if we have a call like gain or loss  but in CNV it is filtered retrive it
@@ -1442,7 +1445,7 @@ def main():
             number += 1
         c = 1
         for path_idx, p in enumerate(paths):
-            structures, scores = convert_path_to_segment(p, edges_with_dummy[path_idx], centro)
+            structures, scores = convert_path_to_segment(p, edges_with_dummy[path_idx], centro,g)
             for jj in range(len(structures)):
                 structure = structures[jj]
                 if structure.endswith(' '):
