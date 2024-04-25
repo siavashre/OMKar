@@ -60,6 +60,9 @@ def find_in_smap(id, smap):  # return a smap call with the iD otherwise return N
         if s.smap_id == id:
             return s
     return None
+
+def is_overlapping(start1, end1, start2, end2):
+    return start1 <= end2 and start2 <= end1
 def is_overlapping_half_centro(start1, end1, start2, end2): # This function check if a segment overlap at least half of centromere region we count it as 1 otherwise 0
     #Centro start --> start2
     #centro end --> end2
