@@ -1,5 +1,5 @@
 import itertools
-
+import math
 ######################### DOUBLE CHECK THIS FUNCTION ######################################
 def detect_sv_directions(sv, xmap):  # this function detect the direction of one smap like H/T to H/T. #need to be check Contain bug?
     if sv.sv_type == 'inversion_paired':  # for inversion_paired always return T to T
@@ -60,8 +60,17 @@ def find_in_smap(id, smap):  # return a smap call with the iD otherwise return N
         if s.smap_id == id:
             return s
     return None
-def is_overlapping(start1, end1, start2, end2):
-    return start1 <= end2 and start2 <= end1
+def is_overlapping_half_centro(start1, end1, start2, end2): # This function check if a segment overlap at least half of centromere region we count it as 1 otherwise 0
+    #Centro start --> start2
+    #centro end --> end2
+    overlap_start = max(start1, start2)
+    overlap_end = min(end1, end2)
+    overlap_percent = (overlap_end - overlap_start) / (end2 - start2)
+    return max(0, overlap_percent)
+    # if overlap_percent >= 0.5:
+    #     return True
+    # return False
+    # return start1 <= end2 and start2 <= end1
 
 def check_non_centromeric_path(p, g, centro):
     count = 0
@@ -70,9 +79,11 @@ def check_non_centromeric_path(p, g, centro):
         v = g.return_node(p[i + 1])
         if u.chromosome == v.chromosome:
             # if (min(u.pos,v.pos)< min(centro['chr'+str(u.chromosome)]) and max(u.pos, v.pos)> min(centro['chr'+str(u.chromosome)])) or (min(u.pos,v.pos)< max(centro['chr'+str(u.chromosome)]) and max(u.pos, v.pos)> max(centro['chr'+str(u.chromosome)])):
-            if is_overlapping(min(u.pos, v.pos), max(u.pos, v.pos), min(centro['chr' + str(u.chromosome)]), max(centro['chr' + str(u.chromosome)])):
-                count += 1
-    return count
+            # if is_overlapping_half_centro(min(u.pos, v.pos), max(u.pos, v.pos), min(centro['chr' + str(u.chromosome)]), max(centro['chr' + str(u.chromosome)])):
+            #     count += 1
+            count += is_overlapping_half_centro(min(u.pos, v.pos), max(u.pos, v.pos), min(centro['chr' + str(u.chromosome)]), max(centro['chr' + str(u.chromosome)]))
+
+    return math.ceil(count)
 
 
 def detect_segment_vertices(component,
