@@ -813,7 +813,40 @@ def fix_dicentric(paths, scores, g, centro):
             ans_path.append(bad_path[i])
             ans_score.append(bad_scores[i])
     return ans_path, ans_score
+def convert_string_to_path_direction(path):
+    segments = path.strip().split()  # Split the string by spaces and remove any leading/trailing whitespace
+    numbers = []
+    directions = []
+    for segment in segments:
+        number = int(segment[:-1])  # Convert the number part to integer
+        direction = segment[-1]  # Get the last character as the direction
+        numbers.append(number)
+        directions.append(direction)
+    return numbers, directions
+def merge_path_with_0_score(ans2 , scores_path):
+    removed = set()
+    for i in range(len(scores_path)):
+        if scores_path[i] == 0:
+            p = ans2[i]
+            s1,d1 = convert_string_to_path_direction(p)
+            for j in range(len(scores_path)):
+                if j != i and scores_path[j] != 0:
+                    s2, d2 = convert_string_to_path_direction(ans2[j])
+                    print('Ger', ans2, scores_path, removed, i, s1, d1, s2 , d2,j)
+                    if s1[0] == s2[-1] and d1[0]!=d2[-1]:
+                        ans2[j] = ans2[j]  + ans2[i]
+                        scores_path[j]+= scores_path[i]
+                        removed.add(i)
+                        break
+                    elif s1[-1] == s2[0] and d1[-1]!=d2[0]:
+                        ans2[j] = ans2[i] + ans2[j]
+                        scores_path[j] += scores_path[i]
+                        removed.add(i)
+                        break
 
+    ans2 =  [ans2[i] for i in range(len(ans2)) if i not in removed]
+    scores_path = [scores_path[i] for i in range(len(scores_path)) if i not in removed]
+    return  ans2 , scores_path
 
 def convert_path_to_segment(p, component_edges, centro,g):  # this is important function that convert Eulerion path with vertices ID to segment path.
     component = list(set(p))
@@ -928,9 +961,9 @@ def convert_path_to_segment(p, component_edges, centro,g):  # this is important 
         ans2.append(temp)
 
     # return ans2, [-1 for _ in range(len(ans2))]
-    return fix_dicentric(ans2, scores_path, g, centro)
-
-
+    ans2 , scores_path = fix_dicentric(ans2, scores_path, g, centro)
+    ans2 , scores_path = merge_path_with_0_score(ans2 , scores_path)
+    return ans2 , scores_path
 def check_exiest_call(chromosome, start, end, type, all_seg):  # if we have a call like gain or loss  but in CNV it is filtered retrive it
     for s in all_seg:
         if s.chromosome == chromosome and s.start >= start and s.end <= end and s.type[:4] == type[:4]:
