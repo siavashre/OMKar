@@ -823,7 +823,29 @@ def convert_string_to_path_direction(path):
         numbers.append(number)
         directions.append(direction)
     return numbers, directions
-def merge_path_with_0_score(ans2 , scores_path):
+def calculate_path_length_from_centro(path, g, centro, arm):
+    l = 0
+    for p in path:
+        id1 = int(p) *2 -2
+        id2 = int(p)*2 -1
+        l = l + (g.vertices[id2].pos - g.vertices[id1].pos)
+        chrom = g.vertices[id1].chromosome
+    if arm == 'p':
+        if l / max(centro['chr'+str(chrom)]) < 0.9:
+            return True
+        else:
+            return False
+    if arm == 'q':
+        end = 0
+        for v in g.vertices:
+            if v.chromosome == chrom and v.pos > end:
+                end = v.pos
+        if l / (end - max(centro['chr'+str(chrom)])) < 0.9:
+            return True
+        else:
+            return False
+    return False
+def merge_path_with_0_score(ans2 , scores_path, g, centro):
     removed = set()
     for i in range(len(scores_path)):
         if scores_path[i] == 0:
@@ -833,12 +855,12 @@ def merge_path_with_0_score(ans2 , scores_path):
                 if j != i and scores_path[j] != 0:
                     s2, d2 = convert_string_to_path_direction(ans2[j])
                     print('Ger', ans2, scores_path, removed, i, s1, d1, s2 , d2,j)
-                    if s1[0] == s2[-1] and d1[0]!=d2[-1]:
+                    if s1[0] == s2[-1] and d1[0]!=d2[-1] and calculate_path_length_from_centro(s1,g,centro,'p'):
                         ans2[j] = ans2[j]  + ans2[i]
                         scores_path[j]+= scores_path[i]
                         removed.add(i)
                         break
-                    elif s1[-1] == s2[0] and d1[-1]!=d2[0]:
+                    elif s1[-1] == s2[0] and d1[-1]!=d2[0] and calculate_path_length_from_centro(s1,g,centro,'q') :
                         ans2[j] = ans2[i] + ans2[j]
                         scores_path[j] += scores_path[i]
                         removed.add(i)
@@ -962,7 +984,7 @@ def convert_path_to_segment(p, component_edges, centro,g):  # this is important 
 
     # return ans2, [-1 for _ in range(len(ans2))]
     ans2 , scores_path = fix_dicentric(ans2, scores_path, g, centro)
-    ans2 , scores_path = merge_path_with_0_score(ans2 , scores_path)
+    ans2 , scores_path = merge_path_with_0_score(ans2 , scores_path, g, centro)
     return ans2 , scores_path
 def check_exiest_call(chromosome, start, end, type, all_seg):  # if we have a call like gain or loss  but in CNV it is filtered retrive it
     for s in all_seg:
@@ -1214,7 +1236,7 @@ def main():
             start, end = min(start, end), max(start, end)
             i.ref_start = start
             i.ref_end = end
-            if abs(end - start) > 800000:  # apply filter on size of inversion
+            if abs(end - start) > 500000:  # apply filter on size of inversion
                 svs.append(i)
                 print(i.line.strip(), start, end, dir)
                 print(s.line.strip())
