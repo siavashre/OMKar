@@ -297,7 +297,7 @@ def find_connected_components(g):  # find connected components in a graph g
 
 def calculate_seg_length(e, g):  # calculate segment length of segment edge e
     l = abs(g.return_node(e[0]).pos - g.return_node(e[1]).pos)
-    return l, math.ceil(l / 5000000)
+    return l, 1 + math.ceil(l / 5000000)
 
 
 def estimating_edge_multiplicities_in_CC(component, g, xmap):
@@ -392,7 +392,7 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
     print('Sv_sum', sv_sum)
     print('CN_tune', cn_tune)
     # objective = 10 * objective  - 9 * sv_sum + 15 * cn_tune
-    objective = 10 * objective - 9 * sv_sum + 9 * cn_tune
+    objective = 10 * objective - 9 * sv_sum + 10 * cn_tune
     objective =  objective -  sv_sum +  cn_tune + odd_vertices_pen
     print('obj', objective)
     Lp_prob += objective
@@ -1236,7 +1236,7 @@ def main():
             start, end = min(start, end), max(start, end)
             i.ref_start = start
             i.ref_end = end
-            if abs(end - start) > 500000:  # apply filter on size of inversion
+            if abs(end - start) > 400000:  # apply filter on size of inversion
                 svs.append(i)
                 print(i.line.strip(), start, end, dir)
                 print(s.line.strip())
@@ -1379,7 +1379,7 @@ def main():
     Plot_graph(g, file, name, centro)
     connected_components = find_connected_components(g)
     for component in connected_components:
-        # if 1 in component:
+        # if 102 in component:
             component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
     Plot_graph(g, file2, name, centro)
@@ -1393,7 +1393,7 @@ def main():
     os.makedirs(args.output + '/all_edges_with_dummies/', exist_ok=True)
     for component in connected_components:
             component_metadata[component_counter] = component
-        # if 1 in component:
+            # if 102 in component:
             component_edges = return_all_edges_in_cc(component, g)
             print(component)
             print(component_edges)
