@@ -1379,7 +1379,7 @@ def main():
     Plot_graph(g, file, name, centro)
     connected_components = find_connected_components(g)
     for component in connected_components:
-        # if 102 in component:
+        # if 12 in component:
             component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
     Plot_graph(g, file2, name, centro)
@@ -1393,7 +1393,7 @@ def main():
     os.makedirs(args.output + '/all_edges_with_dummies/', exist_ok=True)
     for component in connected_components:
             component_metadata[component_counter] = component
-            # if 102 in component:
+            # if 12 in component:
             component_edges = return_all_edges_in_cc(component, g)
             print(component)
             print(component_edges)
