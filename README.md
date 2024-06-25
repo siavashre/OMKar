@@ -48,7 +48,7 @@ bash batch_run.sh data_dir [--out_dir out_dir] [--report report] [--debug debug]
 We are actively updating OMKar based on Simulation and Real Sample Performance, 
 so in general it should be getting better. However, in some situations, we may introduce
 errors/bugs in newer release. In the case that you may want to run the initial OMKar release, run the following
-in the `OMkar\` folder to reset:
+in the `OMkar/` folder to reset:
 ```shell
 git reset --hard 61a1c62
 ```
