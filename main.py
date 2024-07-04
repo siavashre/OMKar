@@ -1039,7 +1039,8 @@ def cn_in_mask_N_region(chromosome, start, end, cop, centro):
 
 def merge_segments_all_seg_smap(segments, all_seg, smap, centro):
     ans = []
-    limit = 50000
+    # limit = 50000
+    limit = 200000
     for sv in smap:
         if sv.sv_type == 'deletion':  # and sv.ref_c_id1=='17':# and sv.ref_start > 20400000 and sv.ref_start < 21000000:
             a = 0
@@ -1211,10 +1212,10 @@ def main():
                         _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
                         svs.append(i)
                         print(i.line.strip())
-                    elif i.confidence >= 0.98 :
-                        # _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
+                    elif i.confidence >= 0.98 and i.size > 2000000 : #This is a limit for detection thos misslabeld translocation as deletion in Bionano Pipeline
+                    #     # _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
                         svs.append(i)
-                        print(i.line.strip())
+                    #     print(i.line.strip())
                         # print('Gerye', i.line.strip())
                 elif i.size > 500000 and abs(i.ref_end - i.ref_start) > 500000:  # this would be for insertion length more than 500Kbp
                     svs.append(i)
@@ -1379,7 +1380,7 @@ def main():
     Plot_graph(g, file, name, centro)
     connected_components = find_connected_components(g)
     for component in connected_components:
-        # if 12 in component:
+        # if 156 in component:
             component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
     Plot_graph(g, file2, name, centro)
@@ -1393,7 +1394,7 @@ def main():
     os.makedirs(args.output + '/all_edges_with_dummies/', exist_ok=True)
     for component in connected_components:
             component_metadata[component_counter] = component
-            # if 12 in component:
+            # if 156 in component:
             component_edges = return_all_edges_in_cc(component, g)
             print(component)
             print(component_edges)
