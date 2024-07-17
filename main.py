@@ -13,6 +13,8 @@ import math
 from matplotlib import rcParams
 from utill import *
 from  bionano_metadata import *
+import pandas as pd
+import csv
 rcParams['pdf.fonttype'] = 42
 
 
@@ -182,7 +184,6 @@ def detect_overlap_map(chromosome, pos, xmap):  # this function detect if there 
                 return True
     return False
 
-
 def Plot_graph(g, file, name, centro):  # this function plot the graph
     vertices = g.vertices
     fig = plt.figure(figsize=(20, 25))
@@ -280,6 +281,20 @@ def dfs(i, temp, g, visited):  # run dfs alg on graph g on vertices i. visited i
             temp = dfs(v, temp, g, visited)
     return temp
 
+def check_contains_masked_region(l_m, start, end):
+    contains = False
+    border_start = False
+    border_end = False
+    for i in l_m:
+        if i[0] - 0 <= start < i[1] + 0:
+            border_start = True
+            contains = True
+        if i[0] - 0 <= end <= i[1] + 0:
+            border_end = True
+            contains = True
+        if start <= i[0] and end >= i[1]:
+            contains = True
+    return contains, border_start, border_end
 
 def find_connected_components(g):  # find connected components in a graph g
     cc = []
@@ -1020,7 +1035,8 @@ def average_values_greater_than_a(input_dict, a):
 
 def cn_in_mask_N_region(chromosome, start, end, cop, centro):
     if chromosome not in ['22', '21', '15', '14', '13']:  # Andy shared this chromosome with me that Bionano CNV call in P arm is not reliable
-        return 2
+        # return 2
+        return round(np.average(list(cop.values()))) #instead of assumption that it is always diploid return the average cn of that chromosome
     else:
         if chromosome == '22' and start < max(centro['chr22']) and end < max(centro['chr22']):
             return round(average_values_greater_than_a(cop, max(centro['chr22'])))
@@ -1029,6 +1045,7 @@ def cn_in_mask_N_region(chromosome, start, end, cop, centro):
         if chromosome == '15' and start < max(centro['chr15']) and end < max(centro['chr15']):
             return round(average_values_greater_than_a(cop, max(centro['chr15'])))
         if chromosome == '14' and start < max(centro['chr14']) and end < max(centro['chr14']):
+            # print(chromosome,round(average_values_greater_than_a(cop, max(centro['chr14']))), 'ponzi')
             return round(average_values_greater_than_a(cop, max(centro['chr14'])))
         if chromosome == '13' and start < max(centro['chr13']) and end < max(centro['chr13']):
             return round(average_values_greater_than_a(cop, max(centro['chr13'])))
@@ -1071,6 +1088,7 @@ def main():
         centro = parse_centro(args.centro)
     else:
         centro = None
+    masked_region = parse_forbiden_region('/nucleus/projects/sraeisid/Bionano_vitual_kt/OMKar/merged_forbidden_regions_unique_hg38.bed')
     segments, all_seg = parse_cnvcall(args.cnv)
     smap = parse_smap(args.smap)
     segments = merge_segments_all_seg_smap(segments, all_seg, smap, centro)  # Need to debug this function
@@ -1079,17 +1097,22 @@ def main():
     chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
     # chrX_cn = 2
     chrX_cn = round(np.average(list(rcop['23'].values())))
-    print('dashag', np.average(list(rcop['23'].values())))
+    print('dashag', np.average(list(rcop['23'].values())), chrX_cn,chrY_cn)
     if chrY_cn > 0:
-        chrX_cn = 1
+        chrX_cn = max(1, chrX_cn)   
+    print('dashag', np.average(list(rcop['23'].values())), chrX_cn,chrY_cn)
     xmap = parse_xmap(args.xmap)
     output = args.output + '/' + args.name + '.txt'
     output2 = args.output + '/' + args.name + '_SV.txt'
+    output3 = args.output + '/' + args.name + '_flagged.txt'
     file = args.output + '/' + args.name + '.pdf'
     file2 = args.output + '/' + args.name + '_2.png'
     name = args.name
     svs = []
     segments = extend_segments_cn(segments, all_seg)  # fill the gap between calls.
+    segments_contains_masked_regions = []
+    segments_border_masked_regions_start = []
+    segments_border_masked_regions_end = []
     for k in rcop.keys():
         seg_list = []
         label_list = list(rcop[k].keys())
@@ -1181,16 +1204,22 @@ def main():
     segments.sort(key=lambda x: (int(x.chromosome), x.start))
     # for s in segments:
     #     print('asli', s.chromosome, s.start, s.end, s.int_cn, sorted(s.bp))
-    with open(output2, 'w') as f:
-        f.write('#h\tSmapEntryID\tQryContigID\tRefcontigID1\tRefcontigID2\tQryStartPos\tQryEndPos\tRefStartPos\tRefEndPos\tConfidence\tType\tXmapID1\tXmapID2\tLinkID\tQryStartIdx\tQryEndIdx\tRefStartIdx\tRefEndIdx\tZygosity\tGenotype\tGenotypeGroup\tRawConfidence\tRawConfidenceLeft\tRawConfidenceRight\tRawConfidenceCenter\tSVsize\tSVfreq\tOrientation\tVAF\n')
-        for i in smap:
-            if i.sv_type.startswith('dele') and not i.sv_type.endswith('nbase') and not i.sv_type.endswith('tiny') and i.size > 50000 and i.size < 500000 and i.confidence > 0.8:
-                f.write(i.line)
-            elif i.sv_type == 'duplication' or i.sv_type == 'duplication_split' or i.sv_type == 'duplication_inverted':
-                f.write(i.line)
-            elif i.sv_type == 'inversion' and i.confidence >= 0.7:
-                f.write(i.line)
-    f.close()
+    with open(output2[:-3]+'bed','w', newline='') as bed:
+        bed_writer = csv.writer(bed, delimiter='\t')
+        bed_writer.writerow(['chromosome', 'start', 'end', 'SV_type', 'smap_id', 'confidence'])
+        with open(output2, 'w') as f:
+            f.write('#h\tSmapEntryID\tQryContigID\tRefcontigID1\tRefcontigID2\tQryStartPos\tQryEndPos\tRefStartPos\tRefEndPos\tConfidence\tType\tXmapID1\tXmapID2\tLinkID\tQryStartIdx\tQryEndIdx\tRefStartIdx\tRefEndIdx\tZygosity\tGenotype\tGenotypeGroup\tRawConfidence\tRawConfidenceLeft\tRawConfidenceRight\tRawConfidenceCenter\tSVsize\tSVfreq\tOrientation\tVAF\n')
+            for i in smap:
+                if i.sv_type.startswith('dele') and not i.sv_type.endswith('nbase') and not i.sv_type.endswith('tiny') and i.size > 50000 and i.size < 1000000 and i.confidence > 0.8:
+                    f.write(i.line)
+                    bed_writer.writerow([i.ref_c_id1, i.ref_start, i.ref_end, i.sv_type, i.smap_id, i.confidence])
+                elif i.sv_type == 'duplication' or i.sv_type == 'duplication_split' or i.sv_type == 'duplication_inverted':
+                    f.write(i.line)
+                    bed_writer.writerow([i.ref_c_id1, i.ref_start, i.ref_end, i.sv_type, i.smap_id, i.confidence])
+                elif i.sv_type == 'inversion' and i.confidence >= 0.7:
+                    f.write(i.line)
+                    bed_writer.writerow([i.ref_c_id1, i.ref_start, i.ref_end, i.sv_type, i.smap_id,i.confidence])
+        f.close()
     for i in smap:
         # translocation applied filters.
         if i.sv_type.startswith('trans') and i.confidence >= 0.05 and not i.sv_type.endswith(
@@ -1392,6 +1421,7 @@ def main():
     component_metadata = {}
     os.makedirs(args.output + '/postILP_components/', exist_ok=True)
     os.makedirs(args.output + '/all_edges_with_dummies/', exist_ok=True)
+    print(g.vertices)
     for component in connected_components:
             component_metadata[component_counter] = component
             # if 156 in component:
@@ -1414,102 +1444,66 @@ def main():
         for key, value in component_metadata.items():
             fp_write.write("{}\t{}\n".format(key, value))
 
-    ################# JOEY's Files ###############################
-    # iscn_output = args.output+'/'+ args.name + '_ISCN' + '.txt'
-    # cytoband_filtered = read_in_cyto(args.cyto)
-    # node_to_map_dict, node_to_smap_dict = node_to_map(svs, xmap, g)
-    # path_map = {}
-    # smap_frames = []
-    # with open(output , 'w') as f :
-    #     f.write('Segment\tNumber\tChromosome\tStart\tEnd\tStartNode\tEndNode\tMapIDs\tSmapIDs\n')
-    #     number = 1
-    #     for i in range(0,len(g.vertices),2):
-    #         v = g.vertices[i]
-    #         u = g.vertices[i+1]
-    #         mapids = return_mapids(v.id,u.id,node_to_map_dict)
-    #         smapids = return_mapids(v.id,u.id,node_to_smap_dict)
-    #         f.write('Segment\t{id}\t{chrom}\t{start}\t{end}\t{snode}\t{enode}\t{mapids}\t{smapids}\n'.format(id = number, chrom = v.chromosome, start= v.pos, end= u.pos, snode = v.id, enode = u.id, mapids=mapids, smapids=smapids))
-    #         p_n = str(number)
-    #         smap_frames.append(smap_to_segment(p_n, smapids, smap))
-    #         if p_n not in path_map:
-    #             path_map[p_n] = 'chr{}:{}-{}'.format(v.chromosome,v.pos,u.pos)
-    #         number += 1
-    #     c = 1
-    #     for path_idx, p in enumerate(paths):
-    #         print(p)
-    #         # structures, scores in convert_path_to_segment(p,g,centro)
-    #         structures, scores = convert_path_to_segment(p, edges_with_dummy[path_idx], centro)
-    #         print(structures)
-    #         for jj in range(len(structures)):
-    #         # for structure,scores in convert_path_to_segment(p,g,centro):
-    #             structure = structures[jj]
-    #             merged_coords,iscn_coords = convert_path(structure, path_map, cytoband_filtered)
-    #             f.write('Path'+str(c)+ ' = '+structure+'\n')
-    #             f.write('Path'+str(c)+ ' = '+merged_coords+'\n')
-    #             f.write('Path'+str(c)+ ' = '+iscn_coords+'\n')
-    #             c+=1
-    # sv_tuples_set = find_sv_node_edges(svs, xmap, g)
-    # segs_list = associate_segments_to_svs(paths, g ,sv_tuples_set, node_to_smap_dict,centro)
-    # subset = [x for x in smap_frames if isinstance(x,pd.DataFrame)]
-    # subset_smap_frame = pd.concat(subset)
-    # subset_smap_frame['Paths']= subset_smap_frame.apply(lambda x: [], axis=1)
-    # subset_smap_frame.index.name = 'Segments'
-    # subset_smap_frame.reset_index(inplace=True)
-    # for segment in segs_list:
-    #     matching_rows = subset_smap_frame[subset_smap_frame['Segments'] == segment[0]]
-    #     if not matching_rows.empty:
-    #         idx = matching_rows.index[0]
-    #         subset_smap_frame.at[idx,'Paths'].append(segment[1])
-    # node_to_map_dict,_ = node_to_map(svs, xmap, g)
-    # path_map = {}
-    # with open(iscn_output, 'w') as f :
-    #     number = 1
-    #     for i in range(0,len(g.vertices),2):
-    #         v = g.vertices[i]
-    #         u = g.vertices[i+1]
-    #         mapids = return_mapids(v.id,u.id,node_to_map_dict)
-    #         p_n = str(number)
-    #         if p_n not in path_map:
-    #             path_map[p_n] = 'chr{}:{}-{}'.format(v.chromosome,v.pos,u.pos)
-    #         number += 1
-    #     c = 1
-    #     for path_idx, p in enumerate(paths):
-    #         structures,scores = convert_path_to_segment(p, edges_with_dummy[path_idx], centro)
-    #         # for structure,scores in convert_path_to_segment(p,g,centro):
-    #         for jj in range(len(structures)):
-    #             structure = structures[jj]
-    #             split_structure = structure.split()
-    #             segments_list = ["Segment {}".format(x.replace('-','').replace('+','')) for x in split_structure]
-    #             path = f"Path {c}"
-    #             merged_coords,iscn_coords = convert_path(structure, path_map, cytoband_filtered)
-    #             f.write('Path'+str(c)+ ' = '+iscn_coords+'\n')
-    #             c+=1
-    # sv_output = args.output + '/' + args.name +'_smap_segments.txt'
-    # subset_smap_frame.to_csv(sv_output,index=False)
-    ############################################################
-
     # print(paths)
     # write in the output
-    with open(output, 'w') as f:
-        f.write('Segment\tNumber\tChromosome\tStart\tEnd\tStartNode\tEndNode\n')
-        number = 1
-        for i in range(0, len(g.vertices), 2):
-            v = g.vertices[i]
-            u = g.vertices[i + 1]
-            f.write('Segment\t{id}\t{chrom}\t{start}\t{end}\t{snode}\t{enode}\n'.format(id=number, chrom=v.chromosome, start=v.pos, end=u.pos, snode=v.id,
-                                                                                        enode=u.id))
-            number += 1
-        c = 1
-        for path_idx, p in enumerate(paths):
-            structures, scores = convert_path_to_segment(p, edges_with_dummy[path_idx], centro,g)
-            for jj in range(len(structures)):
-                structure = structures[jj]
-                if structure.endswith(' '):
-                    structure = structure[:-1]
-                # f.write('Path'+str(c)+'='+','.join(str(z) for z in p)+'\n')
-                # print('path',p,check_non_centromeric_path(p,g, centro))
-                f.write('Path' + str(c) + ' = ' + structure + '\t score = ' + str(scores[jj]) + '\n')
-                c += 1
+    with open(output3, 'w') as f2:
+        with open(output, 'w') as f:
+            f.write('Segment\tNumber\tChromosome\tStart\tEnd\tStartNode\tEndNode\n')
+            f2.write('Segment\tNumber\tChromosome\tStart\tEnd\tStartNode\tEndNode\n')
+            number = 1
+            for i in range(0, len(g.vertices), 2):
+                v = g.vertices[i]
+                u = g.vertices[i + 1]
+                f.write('Segment\t{id}\t{chrom}\t{start}\t{end}\t{snode}\t{enode}\n'.format(id=number, chrom=v.chromosome, start=v.pos, end=u.pos, snode=v.id,
+                                                                                            enode=u.id))
+                f2.write('Segment\t{id}\t{chrom}\t{start}\t{end}\t{snode}\t{enode}\n'.format(id=number, chrom=v.chromosome, start=v.pos, end=u.pos, snode=v.id,
+                                                                                            enode=u.id))
+                a1, a2, a3 = check_contains_masked_region(masked_region[int(v.chromosome)], v.pos, u.pos)
+                if a2:
+                    segments_border_masked_regions_start.append(number)
+                if a3:
+                    segments_border_masked_regions_end.append(number)
+                if a1:
+                    segments_contains_masked_regions.append(number)
+                number += 1
+            c = 1
+            for path_idx, p in enumerate(paths):
+                structures, scores = convert_path_to_segment(p, edges_with_dummy[path_idx], centro,g)
+                for jj in range(len(structures)):
+                    structure = structures[jj]
+                    if structure.endswith(' '):
+                        structure = structure[:-1]
+                    # f.write('Path'+str(c)+'='+','.join(str(z) for z in p)+'\n')
+                    # print('path',p,check_non_centromeric_path(p,g, centro))
+                    f.write('Path' + str(c) + ' = ' + structure + '\t score = ' + str(scores[jj]) + '\n')
+                    paths_structure = structure.split(' ')
+                    paths_structure2 = structure.split(' ')
+                    for i in range(len(paths_structure)):
+                        direction = paths_structure[i][-1]
+                        seg = int(paths_structure[i][:-1])
+                        if (direction == '-' and seg in segments_border_masked_regions_end)  and i>0:
+                            prev_dir = paths_structure2[i-1][-1]
+                            prev_seg = int(paths_structure2[i-1][:-1])
+                            if prev_dir != direction or prev_seg - seg !=1:
+                                paths_structure[i] ="*"+paths_structure[i]
+                        if (direction == '-' and seg in segments_border_masked_regions_start)  and i < len(paths_structure)-1:
+                            next_dir = paths_structure2[i+1][-1]
+                            next_seg = int(paths_structure2[i+1][:-1])
+                            if next_dir != direction or next_seg - seg !=-1:
+                                paths_structure[i] +="*"
+                        if (direction == '+' and seg in segments_border_masked_regions_start)  and i>0:
+                            prev_dir = paths_structure2[i-1][-1]
+                            prev_seg = int(paths_structure2[i-1][:-1])
+                            if prev_dir != direction or prev_seg - seg !=-1:
+                                paths_structure[i] ="*"+paths_structure[i]
+                        if (direction == '+' and seg in segments_border_masked_regions_end) and i < len(paths_structure)-1:
+                            next_dir = paths_structure2[i+1][-1]
+                            next_seg = int(paths_structure2[i+1][:-1])
+                            if next_dir != direction or next_seg - seg != 1:
+                                paths_structure[i] +="*"
+                    structure = ' '.join(i for i in paths_structure)
+                    f2.write('Path' + str(c) + ' = ' + structure + '\t score = ' + str(scores[jj]) + '\n')
+                    c += 1
 
 
 if __name__ == "__main__":

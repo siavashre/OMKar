@@ -184,3 +184,26 @@ def parse_centro(centro):
             r[key].append(pos2)
     return r
 
+
+def parse_forbiden_region(forbiden):
+    masked_regions = {}
+    with open(forbiden, 'r') as file:
+        lines = file.readlines()
+    for line in lines[1:]:
+        columns = line.strip().split('\t')
+        if columns[0] == 'ChrX':
+            columns[0] = 23
+        elif columns[0] == 'ChrY':
+            columns[0] = 24
+        else:
+            columns[0] = int(columns[0][3:])
+        region = {
+            'Chr': columns[0],
+            'StartPos': int(columns[1]),
+            'EndPos': int(columns[2]),
+            'Type': columns[3]
+        }
+        if columns[0] not in masked_regions:
+            masked_regions[columns[0]] = []
+        masked_regions[columns[0]].append([int(columns[1]), int(columns[2]), columns[3]])
+    return masked_regions
