@@ -134,7 +134,7 @@ def merge_list(l):  # this function merge all breakpoints in a segment within a 
     ans = []
     prev = None
     group = []
-    for item in l:
+    for item in l[1:-1]:
         if prev is None or abs(item - prev) <= WINDOW:
             group.append(item)
         else:
@@ -143,7 +143,7 @@ def merge_list(l):  # this function merge all breakpoints in a segment within a 
         prev = item
     if len(group) > 0:
         ans.append(np.mean(group))
-    return ans
+    return [l[0]] + ans + [l[-1]]
 
 
 def rev_dir(a):
