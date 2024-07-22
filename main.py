@@ -180,8 +180,8 @@ def detect_overlap_map(chromosome, pos, xmap):  # this function detect if there 
     for xmapid in xmap.keys():
         x = xmap[xmapid]
         if int(chromosome) == int(x['RefContigID']):
-            min_x = float(pos) - 0
-            max_x = float(pos) + 10000
+            min_x = float(pos) - 25000
+            max_x = float(pos) + 25000
 
             if x['RefStartPos'] <= min_x <= x['RefEndPos'] and x['RefStartPos'] <= max_x <= x['RefEndPos']:
                 return True
