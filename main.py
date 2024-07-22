@@ -163,7 +163,7 @@ def find_start_end(prev_point, start, label_list):
     if len(ans) < 2:
         return 0, 0
     else:
-        return min(ans)+1, start-1
+        return min(min(ans)+1, prev_point+1), start-1
 
 
 def next_prev_label(chromosome, pos):  # not used can be deleted
@@ -180,7 +180,10 @@ def detect_overlap_map(chromosome, pos, xmap):  # this function detect if there 
     for xmapid in xmap.keys():
         x = xmap[xmapid]
         if int(chromosome) == int(x['RefContigID']):
-            if x['RefStartPos'] <= float(pos) - 25000 <= x['RefEndPos'] and x['RefStartPos'] <= float(pos) + 25000 <= x['RefEndPos']:
+            min_x = float(pos) - 0
+            max_x = float(pos) + 10000
+
+            if x['RefStartPos'] <= min_x <= x['RefEndPos'] and x['RefStartPos'] <= max_x <= x['RefEndPos']:
                 return True
     return False
 
