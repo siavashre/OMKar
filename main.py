@@ -177,17 +177,26 @@ def next_prev_label(chromosome, pos):  # not used can be deleted
 
 def detect_overlap_map(chromosome, pos, xmap):  # this function detect if there is a map(alignment that overlap this region)
     # maybe it is good idea instead of 1bp assume a window here.
+    min_x = float(pos) - 20000
+    max_x = float(pos) + 20000
+    min_seen = 1000000000
+    max_seen = 0
     for xmapid in xmap.keys():
         x = xmap[xmapid]
         if int(chromosome) == int(x['RefContigID']):
-            min_x = float(pos) - 25000
-            max_x = float(pos) + 25000
-
+            if min_seen > x['RefStartPos']:
+                min_seen = x['RefStartPos']
+            if max_seen < x['RefEndPos']:
+                max_seen = x['RefEndPos']
             if x['RefStartPos'] <= min_x <= x['RefEndPos'] and x['RefStartPos'] <= max_x <= x['RefEndPos']:
                 return True
+    if min_seen <= float(pos):
+        return True
+    if max_seen >= float(pos):
+        return True
     return False
 
-def Plot_graph(g, file, name, centro):  # this function plot the graph
+def Plot_graph(g, file, name):  # this function plot the graph
     vertices = g.vertices
     fig = plt.figure(figsize=(20, 25))
     plt.title(name)
@@ -597,7 +606,7 @@ def scoring_paths(path_list, segment_vertices, g, centro):
     return best_path
 
 
-def printEulerTour(component, component_edges, g, centro, output_file):  # Find Eulerian path/circuts in connected components in graph g
+def printEulerTour(component, component_edges, g, output_file):  # Find Eulerian path/circuts in connected components in graph g
     g2 = Graph()  # create new graph g2
     g2.edges = component_edges
     for v in component:
@@ -888,7 +897,7 @@ def merge_path_with_0_score(ans2 , scores_path, g, centro):
     scores_path = [scores_path[i] for i in range(len(scores_path)) if i not in removed]
     return  ans2 , scores_path
 
-def convert_path_to_segment(p, component_edges, centro,g):  # this is important function that convert Eulerion path with vertices ID to segment path.
+def convert_path_to_segment(p, component_edges,g):  # this is important function that convert Eulerion path with vertices ID to segment path.
     component = list(set(p))
 
     ## form dict for all cc edges to be efficient in search
@@ -1087,6 +1096,7 @@ def main():
     parser.add_argument("-o", "--output", help="path to output dir", required=True)
     parser.add_argument("-cyto", "--cyto", help="path to file contains cytoband coordinates", required=False)
     args = parser.parse_args()
+    global  centro
     if args.centro is not None:  # this will parse centromere region. It can be hard coded.
         centro = parse_centro(args.centro)
     else:
@@ -1409,13 +1419,13 @@ def main():
     print('Siavash')
     print(g.edges)
     g.output_edges(args.output + '/' + args.name + ".preILP_edges.txt")
-    Plot_graph(g, file, name, centro)
+    Plot_graph(g, file, name)
     connected_components = find_connected_components(g)
     for component in connected_components:
-        # if 156 in component:
+        # if 58 in component:
             component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
-    Plot_graph(g, file2, name, centro)
+    Plot_graph(g, file2, name)
     paths = []
     edges_with_dummy = []
 
@@ -1427,7 +1437,7 @@ def main():
     print(g.vertices)
     for component in connected_components:
             component_metadata[component_counter] = component
-            # if 156 in component:
+            # if 58 in component:
             component_edges = return_all_edges_in_cc(component, g)
             print(component)
             print(component_edges)
@@ -1438,7 +1448,7 @@ def main():
                     fp_write.write(str(edge_itr) + '\n')
 
             out_file = args.output + '/all_edges_with_dummies/' + args.name + ".with_dummies_component_{}.txt".format(component_counter)
-            euler_tour, component_edges_with_dummies = printEulerTour(component, component_edges, g, centro, out_file)
+            euler_tour, component_edges_with_dummies = printEulerTour(component, component_edges, g, out_file)
             paths.append(euler_tour)
             edges_with_dummy.append(component_edges_with_dummies)
             component_counter += 1
@@ -1471,7 +1481,7 @@ def main():
                 number += 1
             c = 1
             for path_idx, p in enumerate(paths):
-                structures, scores = convert_path_to_segment(p, edges_with_dummy[path_idx], centro,g)
+                structures, scores = convert_path_to_segment(p, edges_with_dummy[path_idx],g)
                 for jj in range(len(structures)):
                     structure = structures[jj]
                     if structure.endswith(' '):
