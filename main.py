@@ -79,7 +79,7 @@ class Graph:  # Class of graph
             return ans
         return None
 
-    def add_dummy_edges(self, u, v):  # add dummy edges with type "D" between two nodes if already edge exist between them increase the CN
+    def add_dummy_edges(self, u, v, cnn):  # add dummy edges with type "D" between two nodes if already edge exist between them increase the CN
         e = self.return_edges(u, v)
         if max(u, v) % 2 == 1 and abs(u - v) == 1:
             if len(e) == 1:
@@ -89,22 +89,22 @@ class Graph:  # Class of graph
                 #      self.edges.remove(e)
                 #      self.edges.append((e[0], e[1], cn, e[3]))
                 # else:
-                self.edges.append((u, v, 1, 'D'))
+                self.edges.append((u, v, cnn, 'D'))
                 self.return_node(u).append_edges(v)
                 self.return_node(v).append_edges(u)
         elif e == None:
-            self.edges.append((u, v, 1, 'D'))
+            self.edges.append((u, v, cnn, 'D'))
             self.return_node(u).append_edges(v)
             self.return_node(v).append_edges(u)
         else:
             if len(e) == 1:
                 e = e[0]
-                cn = e[2] + 1
+                cn = e[2] + cnn
                 self.edges.remove(e)
                 self.edges.append((e[0], e[1], cn, e[3]))
             else:
                 e = e[0]
-                cn = e[2] + 1
+                cn = e[2] + cnn
                 self.edges.remove(e)
                 self.edges.append((e[0], e[1], cn, e[3]))
 
@@ -512,6 +512,14 @@ def check_traverse_segment(prev, u, next):  # this function check that after a a
         return True
     return False
 
+def check_traverse_two_consecutive_segment(prev, u , next,g, chrom):
+    if prev == next and g.return_edges(u, next) != None:
+        if len( g.return_edges(u, next)) ==1 :
+            if g.return_edges(u, next)[0][3]=='S':
+                if g.return_node(max(u , next) + 1) != None  and g.return_node(max(min(u , next) - 1, 0)) != None:
+                    return False
+    return  True
+
 
 def printEulerUtil(g, u, prev, chrom):  # find Eulerian path or circuts in graph g starting with node u and previouse seen node is prev.
     valid = []
@@ -522,7 +530,7 @@ def printEulerUtil(g, u, prev, chrom):  # find Eulerian path or circuts in graph
     for v in g.return_node(u).edges:
         e_list = g.return_edges(u, v)  # all edges between u and v
         for e in e_list:
-            if isValidNextEdge(g, u, v, e) and check_traverse_segment(prev, u, v):  # check traversing edge between u and v is valid and meaningfull
+            if isValidNextEdge(g, u, v, e) and check_traverse_segment(prev, u, v):# and check_traverse_two_consecutive_segment(prev, u, v, g, chrom) :  # check traversing edge between u and v is valid and meaningfull
                 valid.append((v, e))
                 if abs(v - u) == 1 and v != prev:  # We want to force if next node is availanle traverse it at first between all options.
                     next_find = True
@@ -580,7 +588,23 @@ def detect_segment_odd_degree(component, component_edges):  # detect vertices wi
             ans.append(i)
     return ans
 
-
+def detect_residue_dgree(component, component_edges):
+    ans = []
+    d = {}
+    for c in component:
+        d[c] = 0
+    for e in component_edges:
+        if e[3]=='S':
+            d[e[0]] += e[2]
+            d[e[1]] += e[2]
+        else:
+            d[e[0]] -= e[2]
+            d[e[1]] -= e[2]
+    for i in d.keys():
+        if d[i] > 0:
+            if i < max(component) and i > min (component):
+                ans.append((i, d[i]))
+    return ans
 def scoring_paths(path_list, segment_vertices, g, centro):
     best_score = 99999
     best_path = ''
@@ -616,6 +640,15 @@ def printEulerTour(component, component_edges, g, output_file):  # Find Eulerian
     print('Component edges', component_edges)
 
     segment_vertices = detect_segment_vertices(component, component_edges)
+
+    residue_vertices = detect_residue_dgree(component, component_edges)
+    print('RESIDUE vertices', residue_vertices)
+    if len(residue_vertices) > 0:
+        for i in residue_vertices:
+            if i[0] % 2 == 0:
+                if (i[0]+1 , i[1]) in residue_vertices:
+                    print('shaqaq')
+                    g2.add_dummy_edges(i[0], i[0]+1, i[1])
     odd_vertices = detect_segment_odd_degree(component, component_edges)
     print('ODD vertices', odd_vertices)
     # for i in range(0,len(segment_vertices), 2):
@@ -635,7 +668,7 @@ def printEulerTour(component, component_edges, g, output_file):  # Find Eulerian
         elif odd_vertices[1] in segment_vertices:
             a = printEulerUtil(g2, odd_vertices[1], -1, g.return_node(odd_vertices[0]).chromosome)
         else:  # If not exist add a dummy edges to make it Eulerian and then find from segment vertices
-            g2.add_dummy_edges(odd_vertices[0], odd_vertices[1])
+            g2.add_dummy_edges(odd_vertices[0], odd_vertices[1], 1)
             # a = printEulerUtil(g2, segment_vertices[0], -1)
             a = []
             for i in segment_vertices:
@@ -645,7 +678,7 @@ def printEulerTour(component, component_edges, g, output_file):  # Find Eulerian
         if len(set(odd_vertices).intersection(
                 set(segment_vertices))) == 0:  # no telomere nodes with odd degree connect all of them to gether like previouse setp
             for i in range(0, len(odd_vertices), 2):
-                g2.add_dummy_edges(odd_vertices[i], odd_vertices[i + 1])
+                g2.add_dummy_edges(odd_vertices[i], odd_vertices[i + 1], 1)
             a = []
             for i in segment_vertices:
                 a.append(printEulerUtil(g2, i, -1, g.return_node(i).chromosome))
@@ -659,7 +692,7 @@ def printEulerTour(component, component_edges, g, output_file):  # Find Eulerian
                     count += 1
                     save_index = i
                 else:
-                    g2.add_dummy_edges(odd_vertices[i], odd_vertices[i + 1])
+                    g2.add_dummy_edges(odd_vertices[i], odd_vertices[i + 1] , 1)
             if odd_vertices[save_index] in segment_vertices:
                 a = printEulerUtil(g2, odd_vertices[save_index], -1, g.return_node(odd_vertices[save_index]).chromosome)
             else:
