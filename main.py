@@ -1115,7 +1115,44 @@ def merge_segments_all_seg_smap(segments, all_seg, smap, centro):
         if s not in segments:
             segments.append(s)
     return segments
+def fix_coordinate(segments, all_seg , smap):
+    limit = 500000
+    for s1 in range(len(all_seg)):
+        if all_seg[s1].type.startswith('loss'):
+            for i in smap:
+                if i.sv_type.startswith('dele'):
+                    if i.ref_c_id1 == all_seg[s1].chromosome :
+                        if abs(i.ref_start - all_seg[s1].start) < limit and abs(i.ref_end - all_seg[s1].end) < limit:
+                            all_seg[s1].end = i.ref_end
+                            all_seg[s1].start = i.ref_start
+                            all_seg[s1].bp = [i.ref_start, i.ref_end]
+        elif all_seg[s1].type.startswith('gain'):
+            for i in smap:
+                if i.sv_type.startswith('dup'):
+                    if i.ref_c_id1 == all_seg[s1].chromosome :
+                        if abs(i.ref_start - all_seg[s1].start) < limit and abs(i.ref_end - all_seg[s1].end) < limit:
+                            all_seg[s1].end = i.ref_end
+                            all_seg[s1].start = i.ref_start
+                            all_seg[s1].bp = [i.ref_start, i.ref_end]
 
+    for s1 in range(len(segments)):
+        if segments[s1].type.startswith('loss'):
+            for i in smap:
+                if i.sv_type.startswith('dele'):
+                    if i.ref_c_id1 == segments[s1].chromosome :
+                        if abs(i.ref_start - segments[s1].start) < limit and abs(i.ref_end - segments[s1].end) < limit:
+                            segments[s1].end = i.ref_end
+                            segments[s1].start = i.ref_start
+                            segments[s1].bp = [i.ref_start , i.ref_end]
+        elif segments[s1].type.startswith('gain'):
+            for i in smap:
+                if i.sv_type.startswith('dup'):
+                    if i.ref_c_id1 == segments[s1].chromosome :
+                        if abs(i.ref_start - segments[s1].start) < limit and abs(i.ref_end - segments[s1].end) < limit:
+                            segments[s1].end = i.ref_end
+                            segments[s1].start = i.ref_start
+                            segments[s1].bp = [i.ref_start , i.ref_end]
+    return  segments, all_seg
 
 ######################################################################################################################################
 def main():
@@ -1137,6 +1174,7 @@ def main():
     masked_region = parse_forbiden_region('/nucleus/projects/sraeisid/Bionano_vitual_kt/OMKar/merged_forbidden_regions_unique_hg38.bed')
     segments, all_seg = parse_cnvcall(args.cnv)
     smap = parse_smap(args.smap)
+    segments, all_seg = fix_coordinate(segments, all_seg, smap)
     segments = merge_segments_all_seg_smap(segments, all_seg, smap, centro)  # Need to debug this function
     segments.sort(key=lambda x: (int(x.chromosome), x.start))
     rcov, rcop = parse_rcmap(args.rcmap)
@@ -1268,8 +1306,7 @@ def main():
         f.close()
     for i in smap:
         # translocation applied filters.
-        if i.sv_type.startswith('trans') and i.confidence >= 0.05 and not i.sv_type.endswith(
-                'segdupe') and not i.sv_type.endswith('common') and not i.sv_type.endswith('oveerlap') and (
+        if i.sv_type.startswith('trans') and i.confidence >= 0.05 and not i.sv_type.endswith('common') and not i.sv_type.endswith('oveerlap') and (
                 i.ref_c_id1 != i.ref_c_id2 or abs(i.ref_end - i.ref_start) > 300000):
             svs.append(i)
             exist, s = detect_receprical_translocation(i, xmap, smap)
