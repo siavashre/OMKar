@@ -1116,7 +1116,7 @@ def merge_segments_all_seg_smap(segments, all_seg, smap, centro):
             segments.append(s)
     return segments
 def fix_coordinate(segments, all_seg , smap):
-    limit = 500000
+    limit = 200000
     for s1 in range(len(all_seg)):
         if all_seg[s1].type.startswith('loss'):
             for i in smap:
@@ -1130,11 +1130,18 @@ def fix_coordinate(segments, all_seg , smap):
             for i in smap:
                 if i.sv_type.startswith('dup'):
                     if i.ref_c_id1 == all_seg[s1].chromosome :
-                        if abs(i.ref_start - all_seg[s1].start) < limit and abs(i.ref_end - all_seg[s1].end) < limit:
-                            all_seg[s1].end = i.ref_end
-                            all_seg[s1].start = i.ref_start
-                            all_seg[s1].bp = [i.ref_start, i.ref_end]
-
+                        if not i.sv_type.endswith('inverted'):
+                            if abs(i.ref_start - all_seg[s1].start) < limit and abs(i.ref_end - all_seg[s1].end) < limit:
+                                all_seg[s1].end = i.ref_end
+                                all_seg[s1].start = i.ref_start
+                                all_seg[s1].bp = [i.ref_start, i.ref_end]
+                        elif i.sv_type.endswith('inverted'): # need to check direction as well
+                            if abs(all_seg[s1].start - np.mean(i.ref_start ,i.ref_end)) < limit:
+                                all_seg[s1].start = np.mean(i.ref_start ,i.ref_end)
+                                all_seg[s1].bp = [np.mean(i.ref_start ,i.ref_end), all_seg[s1].bp[1]]
+                            elif abs(all_seg[s1].end - np.mean(i.ref_start ,i.ref_end)) < limit:
+                                all_seg[s1].end = np.mean(i.ref_start, i.ref_end)
+                                all_seg[s1].bp = [all_seg[s1].bp[0], np.mean(i.ref_start, i.ref_end)]
     for s1 in range(len(segments)):
         if segments[s1].type.startswith('loss'):
             for i in smap:
@@ -1148,10 +1155,19 @@ def fix_coordinate(segments, all_seg , smap):
             for i in smap:
                 if i.sv_type.startswith('dup'):
                     if i.ref_c_id1 == segments[s1].chromosome :
-                        if abs(i.ref_start - segments[s1].start) < limit and abs(i.ref_end - segments[s1].end) < limit:
-                            segments[s1].end = i.ref_end
-                            segments[s1].start = i.ref_start
-                            segments[s1].bp = [i.ref_start , i.ref_end]
+                        if not i.sv_type.endswith('inverted'):
+                            if abs(i.ref_start - segments[s1].start) < limit and abs(i.ref_end - segments[s1].end) < limit:
+                                segments[s1].end = i.ref_end
+                                segments[s1].start = i.ref_start
+                                segments[s1].bp = [i.ref_start , i.ref_end]
+                        elif i.sv_type.endswith('inverted'):
+                            if abs(segments[s1].start - np.mean(i.ref_start ,i.ref_end)) < limit:
+                                segments[s1].start = np.mean(i.ref_start ,i.ref_end)
+                                segments[s1].bp = [np.mean(i.ref_start ,i.ref_end), segments[s1].bp[1]]
+                            elif abs(segments[s1].end - np.mean(i.ref_start ,i.ref_end)) < limit:
+                                segments[s1].end = np.mean(i.ref_start, i.ref_end)
+                                segments[s1].bp = [segments[s1].bp[0], np.mean(i.ref_start, i.ref_end)]
+
     return  segments, all_seg
 
 ######################################################################################################################################
@@ -1171,7 +1187,7 @@ def main():
         centro = parse_centro(args.centro)
     else:
         centro = None
-    masked_region = parse_forbiden_region('/nucleus/projects/sraeisid/Bionano_vitual_kt/OMKar/merged_forbidden_regions_unique_hg38.bed')
+    # masked_region = parse_forbiden_region('/nucleus/projects/sraeisid/Bionano_vitual_kt/OMKar/merged_forbidden_regions_unique_hg38.bed')
     segments, all_seg = parse_cnvcall(args.cnv)
     smap = parse_smap(args.smap)
     segments, all_seg = fix_coordinate(segments, all_seg, smap)
@@ -1541,13 +1557,13 @@ def main():
                                                                                             enode=u.id))
                 f2.write('Segment\t{id}\t{chrom}\t{start}\t{end}\t{snode}\t{enode}\n'.format(id=number, chrom=v.chromosome, start=v.pos, end=u.pos, snode=v.id,
                                                                                             enode=u.id))
-                a1, a2, a3 = check_contains_masked_region(masked_region[int(v.chromosome)], v.pos, u.pos)
-                if a2:
-                    segments_border_masked_regions_start.append(number)
-                if a3:
-                    segments_border_masked_regions_end.append(number)
-                if a1:
-                    segments_contains_masked_regions.append(number)
+                # a1, a2, a3 = check_contains_masked_region(masked_region[int(v.chromosome)], v.pos, u.pos)
+                # if a2:
+                #     segments_border_masked_regions_start.append(number)
+                # if a3:
+                #     segments_border_masked_regions_end.append(number)
+                # if a1:
+                #     segments_contains_masked_regions.append(number)
                 number += 1
             c = 1
             for path_idx, p in enumerate(paths):
