@@ -1136,12 +1136,12 @@ def fix_coordinate(segments, all_seg , smap):
                                 all_seg[s1].start = i.ref_start
                                 all_seg[s1].bp = [i.ref_start, i.ref_end]
                         elif i.sv_type.endswith('inverted'): # need to check direction as well
-                            if abs(all_seg[s1].start - np.mean(i.ref_start ,i.ref_end)) < limit:
-                                all_seg[s1].start = np.mean(i.ref_start ,i.ref_end)
-                                all_seg[s1].bp = [np.mean(i.ref_start ,i.ref_end), all_seg[s1].bp[1]]
-                            elif abs(all_seg[s1].end - np.mean(i.ref_start ,i.ref_end)) < limit:
-                                all_seg[s1].end = np.mean(i.ref_start, i.ref_end)
-                                all_seg[s1].bp = [all_seg[s1].bp[0], np.mean(i.ref_start, i.ref_end)]
+                            if abs(all_seg[s1].start - np.mean([i.ref_start ,i.ref_end])) < limit:
+                                all_seg[s1].start = np.mean([i.ref_start ,i.ref_end])
+                                all_seg[s1].bp = [np.mean([i.ref_start ,i.ref_end]), all_seg[s1].bp[1]]
+                            elif abs(all_seg[s1].end - np.mean([i.ref_start ,i.ref_end])) < limit:
+                                all_seg[s1].end = np.mean([i.ref_start, i.ref_end])
+                                all_seg[s1].bp = [all_seg[s1].bp[0], np.mean([i.ref_start, i.ref_end])]
     for s1 in range(len(segments)):
         if segments[s1].type.startswith('loss'):
             for i in smap:
@@ -1161,12 +1161,12 @@ def fix_coordinate(segments, all_seg , smap):
                                 segments[s1].start = i.ref_start
                                 segments[s1].bp = [i.ref_start , i.ref_end]
                         elif i.sv_type.endswith('inverted'):
-                            if abs(segments[s1].start - np.mean(i.ref_start ,i.ref_end)) < limit:
-                                segments[s1].start = np.mean(i.ref_start ,i.ref_end)
-                                segments[s1].bp = [np.mean(i.ref_start ,i.ref_end), segments[s1].bp[1]]
-                            elif abs(segments[s1].end - np.mean(i.ref_start ,i.ref_end)) < limit:
-                                segments[s1].end = np.mean(i.ref_start, i.ref_end)
-                                segments[s1].bp = [segments[s1].bp[0], np.mean(i.ref_start, i.ref_end)]
+                            if abs(segments[s1].start - np.mean([i.ref_start ,i.ref_end])) < limit:
+                                segments[s1].start = np.mean([i.ref_start ,i.ref_end])
+                                segments[s1].bp = [np.mean([i.ref_start ,i.ref_end]), segments[s1].bp[1]]
+                            elif abs(segments[s1].end - np.mean([i.ref_start ,i.ref_end])) < limit:
+                                segments[s1].end = np.mean([i.ref_start, i.ref_end])
+                                segments[s1].bp = [segments[s1].bp[0], np.mean([i.ref_start, i.ref_end])]
 
     return  segments, all_seg
 
