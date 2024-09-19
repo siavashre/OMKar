@@ -130,8 +130,8 @@ def parse_cnvcall(cnvcall):
                     # else:# if segment length is greater than 500Kbp add it.
                         segment_list.append(segment)
                     # segment_list.append(segment)
-                elif segment.width > 200000  and segment.conf>= 0.99: #If segment is in the telomeric reason and we are high conf add it
-                    segment_list.append(segment)
+                # elif segment.width > 200000  and segment.conf>= 0.99: #If segment is in the telomeric reason and we are high conf add it
+                #     segment_list.append(segment)
                 all_seg.append(segment)
     return segment_list, all_seg #return two lists of segment class. one the filtered one and one all of them. 
 
