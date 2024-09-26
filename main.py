@@ -1324,7 +1324,7 @@ def main():
         # translocation applied filters.
         if i.sv_type.startswith('trans') and i.confidence >= 0.05 and not i.sv_type.endswith('common') and not i.sv_type.endswith('oveerlap') and (
                 i.ref_c_id1 != i.ref_c_id2 or abs(i.ref_end - i.ref_start) > 300000):
-            svs.append(i)
+            svs.append(i) #fixed
             exist, s = detect_receprical_translocation(i, xmap, smap)
             if exist:
                 svs.append(s)
