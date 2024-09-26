@@ -1107,10 +1107,23 @@ def merge_segments_all_seg_smap(segments, all_seg, smap, centro):
         if sv.sv_type == 'deletion':  # and sv.ref_c_id1=='17':# and sv.ref_start > 20400000 and sv.ref_start < 21000000:
             a = 0
             for s in all_seg:
-                if sv.ref_c_id1 == s.chromosome and s.type.startswith('loss') and not s.type.endswith('masked') and s.width > 200000: # why do we have 200,000 here?  # should be same number az search Min Seg Length #adserqa
+                if sv.ref_c_id1 == s.chromosome and s.type.startswith('loss') and s.width > limit:# and not s.type.endswith('masked'): # why do we have 200,000 here?  # should be same number az search Min Seg Length #adserqa
                     if abs(s.start - min(sv.ref_start, sv.ref_end)) < limit and abs(s.end - max(sv.ref_start, sv.ref_end)) < limit:
                         if not is_overlapping(min(centro['chr' + str(sv.ref_c_id1)]), max(centro['chr' + str(sv.ref_c_id1)]), sv.ref_start, sv.ref_end):
                             ans.append(s)
+        elif sv.sv_type.startswith('dup'):
+            for s in all_seg:
+                if sv.ref_c_id1 == s.chromosome and s.type.startswith('gain') and s.width > limit:
+                    if not sv.sv_type.endswith('inverted'):
+                        if abs(sv.ref_start - s.start) < limit and abs(sv.ref_end - s.end) < limit:
+                            if not is_overlapping(min(centro['chr' + str(sv.ref_c_id1)]), max(centro['chr' + str(sv.ref_c_id1)]), sv.ref_start, sv.ref_end):
+                                ans.append(s)
+                    elif sv.sv_type.endswith('inverted'):
+                        if not is_overlapping(min(centro['chr' + str(sv.ref_c_id1)]), max(centro['chr' + str(sv.ref_c_id1)]), sv.ref_start, sv.ref_end):
+                            if abs(s.start - np.mean([sv.ref_start ,sv.ref_end])) < limit:
+                                ans.append(s)
+                            elif abs(s.end - np.mean([sv.ref_start ,sv.ref_end])) < limit:
+                                ans.append(s)
     for s in ans:
         if s not in segments:
             segments.append(s)
