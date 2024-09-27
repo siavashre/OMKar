@@ -835,7 +835,7 @@ def swap_segment(p1, p2, g, centro):
                 new_p2 = movements1[:i] + movements2[j:]
                 if check_non_centromeric_path(convert_segment_to_path(new_p1), g, centro) == 1 and check_non_centromeric_path(convert_segment_to_path(new_p2),
                                                                                                                               g, centro) == 1:
-                    return True, ' '.join(new_p1), ' '.join(new_p2)
+                    return True, ' '.join(new_p1)+' ', ' '.join(new_p2)+' '
     return False, p1, p2
 
 
