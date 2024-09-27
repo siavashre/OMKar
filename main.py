@@ -916,12 +916,12 @@ def merge_path_with_0_score(ans2 , scores_path, g, centro):
                     s2, d2 = convert_string_to_path_direction(ans2[j])
                     print('Ger', ans2, scores_path, removed, i, s1, d1, s2 , d2,j)
                     if s1[0] == s2[-1] and d1[0]!=d2[-1] and calculate_path_length_from_centro(s1,g,centro,'p'):
-                        ans2[j] = ans2[j]  +' '+ ans2[i]
+                        ans2[j] = ans2[j]  + ans2[i]
                         scores_path[j]+= scores_path[i]
                         removed.add(i)
                         break
                     elif s1[-1] == s2[0] and d1[-1]!=d2[0] and calculate_path_length_from_centro(s1,g,centro,'q') :
-                        ans2[j] = ans2[i] +' '+ ans2[j]
+                        ans2[j] = ans2[i] + ans2[j]
                         scores_path[j] += scores_path[i]
                         removed.add(i)
                         break
