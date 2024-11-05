@@ -16,7 +16,7 @@ def parse_rcmap(cmap_dir):
                 fD = dict(zip(head, fields))
                 chrom = fD['CMapId']
                 pos = int(float(fD['Position']))
-                cover = int(fD['Coverage'])
+                cover = float(fD['Coverage'])
                 copynumber = int(fD['CopyNumber'])
                 cov[chrom][pos] = cover
                 cop[chrom][pos] = copynumber
@@ -114,7 +114,10 @@ def parse_cnvcall(cnvcall):
                 segment.chromosome = fD['Chromosome']
                 segment.start = float(fD['Start'])
                 segment.end = float(fD['End'])
-                segment.width = float(fD['Width'])
+                if 'Width' in fD.keys():
+                    segment.width = float(fD['Width'])
+                else:
+                    segment.width = float(fD['Size'])
                 segment.type = fD['Type']
                 segment.fractional_cn = float(fD['fractionalCopyNumber'])
                 segment.int_cn = int(fD['CopyNumber'])
