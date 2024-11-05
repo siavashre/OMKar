@@ -1,7 +1,7 @@
 
 # OMKar
 
-OMKar is a computational tool for automated karyotyping using Optical Genome Mapping (OGM) data, focusing on detecting structural variations (SV) and copy number variations (CNV) with high resolution. OMKar provides a virtual karyotype and detailed analysis of chromosomal abnormalities, making it ideal for identifying constitutional genetic disorders.
+OMKar is a computational tool for automated karyotyping that utilizes Structural Variation (SV) and Copy Number Variation (CNV) calls derived from Optical Genome Mapping (OGM) data. OMKar generates a virtual karyotype by analyzing SV and CNV information, providing insights into chromosomal abnormalities associated with constitutional genetic disorders.
 
 ## Table of Contents
 - [Requirements](#requirements)
@@ -16,6 +16,13 @@ OMKar is a computational tool for automated karyotyping using Optical Genome Map
 ---
 ### Requirements
 - **Python packages**: All dependencies are Python-based for ease of installation.
+  - Python 3.6 or later.
+  - `numpy` >=1.25.0
+  - `matplotlib` >=3.8.0
+  - `pandas` >=2.1.0
+  - `scipy` >=1.11.0
+  - `pulp` >=2.7.0
+  - `argparse` >=1.4.0
 - **Optional PDF Reports**: Requires TeXWork for generating PDF reports (HTML report generation only requires Python packages).
   `
 ### Installation
@@ -55,6 +62,18 @@ bash batch_run.sh data_dir [--out_dir out_dir] [--report report] [--debug debug]
 | (optional) `--debug true`        | STR  | (default: false) Only useful when generating a report; include debug information in the report output |
 
 ---
+**Usage**:
+For running OMkar(Only the karyotype part) on a single case you can use:
+```shell
+python3 main.py -cnv cnv_calls_exp.txt -smap exp_refineFinal1_merged_filter_inversions.smap -rcmap cnv_rcmap_exp.txt -xmap exp_refineFinal1_merged.xmap -n test -o output/ -centro hg38_centro.txt -cyto cytoBand.txt
+```
+- `-smap`: Path to the structural variations map file (`exp_refineFinal1_merged_filter_inversions.smap`).
+- `-rcmap`: Path to the reference copy number map (`cnv_rcmap_exp.txt`).
+- `-xmap`: Path to the XMAP alignment file (`exp_refineFinal1_merged.xmap`).
+- `-n`: Name of the output file (`test`).
+- `-o`: Output directory path for storing OMKar results.
+- `-centro`: Path to the centromere file (`hg38_centro.txt`).
+- `-cyto`: Path to the cytoband file (`cytoBand.txt`).
 
 ### Output and Interpretation
 OMKar provides:
