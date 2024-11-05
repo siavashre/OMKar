@@ -647,8 +647,10 @@ def printEulerTour(component, component_edges, g, output_file):  # Find Eulerian
         for i in residue_vertices:
             if i[0] % 2 == 0:
                 if (i[0]+1 , i[1]) in residue_vertices:
-                    print('shaqaq')
-                    g2.add_dummy_edges(i[0], i[0]+1, i[1])
+                    #need to check the cn is greater than average
+                    if g.return_node(i[0]).cn > 2:
+                        print('shaqaq')#Siavash need to take care of it.
+                        g2.add_dummy_edges(i[0], i[0]+1, i[1])
     odd_vertices = detect_segment_odd_degree(component, component_edges)
     print('ODD vertices', odd_vertices)
     # for i in range(0,len(segment_vertices), 2):
@@ -1142,7 +1144,7 @@ def fix_coordinate(segments, all_seg , smap):
         elif all_seg[s1].type.startswith('gain'):
             for i in smap:
                 if i.sv_type.startswith('dup'):
-                    if i.ref_c_id1 == all_seg[s1].chromosome :
+                    if i.ref_c_id1 == all_seg[s1].chromosome :#and str(i.ref_c_id1) == '6' :
                         if not i.sv_type.endswith('inverted'):
                             if abs(i.ref_start - all_seg[s1].start) < limit and abs(i.ref_end - all_seg[s1].end) < limit:
                                 all_seg[s1].end = i.ref_end
@@ -1150,11 +1152,17 @@ def fix_coordinate(segments, all_seg , smap):
                                 all_seg[s1].bp = [i.ref_start, i.ref_end]
                         elif i.sv_type.endswith('inverted'): # need to check direction as well
                             if abs(all_seg[s1].start - np.mean([i.ref_start ,i.ref_end])) < limit:
-                                all_seg[s1].start = np.mean([i.ref_start ,i.ref_end])
-                                all_seg[s1].bp = [np.mean([i.ref_start ,i.ref_end]), all_seg[s1].bp[1]]
+                                all_seg[s1].start = min([i.ref_start ,i.ref_end])
+                                all_seg[s1].bp = [min([i.ref_start ,i.ref_end]), all_seg[s1].bp[1]]
+                                if all_seg[s1].start < all_seg[s1-1].end and all_seg[s1].chromosome == all_seg[s1-1].chromosome:
+                                    all_seg[s1-1].end = all_seg[s1].start -1
+                                    all_seg[s1-1].bp = [all_seg[s1-1].start, all_seg[s1-1].end]
                             elif abs(all_seg[s1].end - np.mean([i.ref_start ,i.ref_end])) < limit:
-                                all_seg[s1].end = np.mean([i.ref_start, i.ref_end])
-                                all_seg[s1].bp = [all_seg[s1].bp[0], np.mean([i.ref_start, i.ref_end])]
+                                all_seg[s1].end = max([i.ref_start, i.ref_end])
+                                all_seg[s1].bp = [all_seg[s1].bp[0], max([i.ref_start, i.ref_end])]
+                                if all_seg[s1].end > all_seg[s1+1].start and all_seg[s1].chromosome == all_seg[s1+1].chromosome:
+                                    all_seg[s1+1].start = all_seg[s1].end + 1
+                                    all_seg[s1+1].bp = [all_seg[s1+1].start, all_seg[s1+1].end]
     for s1 in range(len(segments)):
         if segments[s1].type.startswith('loss'):
             for i in smap:
@@ -1167,7 +1175,7 @@ def fix_coordinate(segments, all_seg , smap):
         elif segments[s1].type.startswith('gain'):
             for i in smap:
                 if i.sv_type.startswith('dup'):
-                    if i.ref_c_id1 == segments[s1].chromosome :
+                    if i.ref_c_id1 == segments[s1].chromosome:# and str(i.ref_c_id1) == '6' :
                         if not i.sv_type.endswith('inverted'):
                             if abs(i.ref_start - segments[s1].start) < limit and abs(i.ref_end - segments[s1].end) < limit:
                                 segments[s1].end = i.ref_end
@@ -1175,11 +1183,17 @@ def fix_coordinate(segments, all_seg , smap):
                                 segments[s1].bp = [i.ref_start , i.ref_end]
                         elif i.sv_type.endswith('inverted'):
                             if abs(segments[s1].start - np.mean([i.ref_start ,i.ref_end])) < limit:
-                                segments[s1].start = np.mean([i.ref_start ,i.ref_end])
-                                segments[s1].bp = [np.mean([i.ref_start ,i.ref_end]), segments[s1].bp[1]]
+                                segments[s1].start = min([i.ref_start ,i.ref_end])
+                                segments[s1].bp = [min([i.ref_start ,i.ref_end]), segments[s1].bp[1]]
+                                if segments[s1].start < segments[s1-1].end and segments[s1].chromosome == segments[s1-1].chromosome:
+                                    segments[s1-1].end = segments[s1].start -1
+                                    segments[s1-1].bp = [segments[s1-1].start, segments[s1-1].end]
                             elif abs(segments[s1].end - np.mean([i.ref_start ,i.ref_end])) < limit:
-                                segments[s1].end = np.mean([i.ref_start, i.ref_end])
-                                segments[s1].bp = [segments[s1].bp[0], np.mean([i.ref_start, i.ref_end])]
+                                segments[s1].end = max([i.ref_start, i.ref_end])
+                                segments[s1].bp = [segments[s1].bp[0], max([i.ref_start, i.ref_end])]
+                                if segments[s1].end > segments[s1+1].start and segments[s1].chromosome == segments[s1+1].chromosome:
+                                    segments[s1+1].start = segments[s1].end + 1
+                                    segments[s1+1].bp = [segments[s1+1].start, segments[s1+1].end]
 
     return  segments, all_seg
 
@@ -1521,7 +1535,7 @@ def main():
     Plot_graph(g, file, name)
     connected_components = find_connected_components(g)
     for component in connected_components:
-        # if 58 in component:
+        # if 184 in component:
             component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
     Plot_graph(g, file2, name)
@@ -1536,7 +1550,7 @@ def main():
     print(g.vertices)
     for component in connected_components:
             component_metadata[component_counter] = component
-            # if 58 in component:
+            # if 184 in component:
             component_edges = return_all_edges_in_cc(component, g)
             print(component)
             print(component_edges)
