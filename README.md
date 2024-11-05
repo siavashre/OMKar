@@ -1,20 +1,30 @@
+
 # OMKar
 
-#### Requirements
+OMKar is a computational tool for automated karyotyping using Optical Genome Mapping (OGM) data, focusing on detecting structural variations (SV) and copy number variations (CNV) with high resolution. OMKar provides a virtual karyotype and detailed analysis of chromosomal abnormalities, making it ideal for identifying constitutional genetic disorders.
 
-Use the following command in your working directory to clone OMKar:
+## Table of Contents
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+- [File Structure](#file-structure)
+- [Output and Interpretation](#output-and-interpretation)
+- [Known Issues and Limitations](#known-issues-and-limitations)
+- [License](#license)
+- [Contact](#contact)
+
+---
+### Requirements
+- **Python packages**: All dependencies are Python-based for ease of installation.
+- **Optional PDF Reports**: Requires TeXWork for generating PDF reports (HTML report generation only requires Python packages).
+  `
+### Installation
+Clone OMKar from GitHub and navigate to the working directory:
 ```shell
 git clone https://github.com/siavashre/OMKar.git
 ```
-
-All dependencies of OMKar are python packages, so the installation should be relatively simple.
-
-Optionally, there are two methods for generating downstream report, either in PDF or in HTML. 
-Generating the HTML reports only requires python packages, whereas the PDF version requires a locally installed
-TeXWork package. The HTML version currently is less refined looking, but contains the same information.
-
-The input of the batch code takes in a data directory path and output OMKar for all data entries in the directory.
-The data directory must be organized in the below hierarchy:
+### File Structure
+The input data directory must follow this structure:
 ```
 <data_dir>/
     <sample_name1>/
@@ -30,31 +40,47 @@ The data directory must be organized in the below hierarchy:
     ...
 ```
 
-#### Usage/Parameters
-
-Run OMKar in the `OMKar/` folder:
+### Usage
+Run OMKar in the `OMKar/` directory using the batch script:
 ```shell
 bash batch_run.sh data_dir [--out_dir out_dir] [--report report] [--debug debug]
 ```
 
-| Argument                         | Type | Description                                                                                            |
-|----------------------------------|------|--------------------------------------------------------------------------------------------------------|
-| `data_dir`                       | DIR  | Contains the data in the correct hierarchy                                                             |
-| (optional) `--out_dir <outdir>`  | DIR  | (default: OMKar/outputs/) Output location                                                              |
-| (optional) `--report <html/pdf>` | STR  | (default: None) Generating an HTML/PDF report for all cases ran                                        |
-| (optional) `--debug true`        | STR  | (default: false) Only useful when generating a report; include debug information in the report output, |
+**Arguments**:
+| Argument                         | Type | Description                                                                                        |
+|----------------------------------|------|----------------------------------------------------------------------------------------------------|
+| `data_dir`                       | DIR  | Contains the data in the correct hierarchy                                                         |
+| (optional) `--out_dir <outdir>`  | DIR  | (default: OMKar/outputs/) Output location                                                          |
+| (optional) `--report <html/pdf>` | STR  | (default: None) Generating an HTML/PDF report for all cases ran                                    |
+| (optional) `--debug true`        | STR  | (default: false) Only useful when generating a report; include debug information in the report output |
 
-#### Additional Notes:
-We are actively updating OMKar based on Simulation and Real Sample Performance, 
-so in general it should be getting better. However, in some situations, we may introduce
-errors/bugs in newer release. In the case that you may want to run the initial OMKar release, run the following
-in the `OMkar/` folder to reset:
+---
+
+### Output and Interpretation
+OMKar provides:
+1. **Molecular Karyotype**: A detailed text output listing chromosomal segments.
+2. **Graphical Karyotype**: A visual representation of chromosomes with event annotations.
+3. **ISCN Event Interpretation**: Events described in ISCN notation, detailing structural variations and chromosomal abnormalities.
+4. **Gene List Report**: Important genes near breakpoints are highlighted, aiding in genotype-to-phenotype interpretation.
+
+**Example**:
+- A report may identify balanced translocations, aneuploidies, and SV types such as inversions and duplications with ISCN notation and provide corresponding affected gene information.
+
+### Known Issues and Limitations
+- **False Positives**: The latest update includes more inversion and duplication-inversion calls, which may introduce some false positives.
+- **Acrocentric Region of Chr21**: Recurrent structural variations have been observed in the p-arm region of Chr21. This issue is under investigation.
+
+### Additional Notes
+OMKar is actively updated based on simulations and real sample performance. If needed, reset to an earlier version:
 ```shell
 git reset --hard 61a1c62
 ```
-Check back to this live update thread for issues and notices:
-- We are calling more inversions and duplication inversions in the newer version. 
-Although this may introduce a few false positives, but based on simulations, we are introducing a lot
-more true positives.
-- There is an issue where a set of recurrent SVs are appearing in the p-arm (acrocentric) region of Chr21; 
-we are investigating
+For live updates and issue tracking, please check the GitHub repository.
+
+---
+
+### License
+MIT License.
+
+### Contact
+For issues, questions, or contributions, visit [GitHub Issues](https://github.com/siavashre/OMKar/issues) or contact the maintainers directly.
