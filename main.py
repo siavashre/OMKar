@@ -1154,13 +1154,13 @@ def fix_coordinate(segments, all_seg , smap):
                             if abs(all_seg[s1].start - np.mean([i.ref_start ,i.ref_end])) < limit:
                                 all_seg[s1].start = min([i.ref_start ,i.ref_end])
                                 all_seg[s1].bp = [min([i.ref_start ,i.ref_end]), all_seg[s1].bp[1]]
-                                if all_seg[s1].start < all_seg[s1-1].end and all_seg[s1].chromosome == all_seg[s1-1].chromosome:
+                                if s1 > 0 and all_seg[s1].start < all_seg[s1-1].end and all_seg[s1].chromosome == all_seg[s1-1].chromosome:
                                     all_seg[s1-1].end = all_seg[s1].start -1
                                     all_seg[s1-1].bp = [all_seg[s1-1].start, all_seg[s1-1].end]
                             elif abs(all_seg[s1].end - np.mean([i.ref_start ,i.ref_end])) < limit:
                                 all_seg[s1].end = max([i.ref_start, i.ref_end])
                                 all_seg[s1].bp = [all_seg[s1].bp[0], max([i.ref_start, i.ref_end])]
-                                if all_seg[s1].end > all_seg[s1+1].start and all_seg[s1].chromosome == all_seg[s1+1].chromosome:
+                                if s1 + 1 < len(all_seg) and all_seg[s1].end > all_seg[s1+1].start and all_seg[s1].chromosome == all_seg[s1+1].chromosome:
                                     all_seg[s1+1].start = all_seg[s1].end + 1
                                     all_seg[s1+1].bp = [all_seg[s1+1].start, all_seg[s1+1].end]
     for s1 in range(len(segments)):
@@ -1185,13 +1185,13 @@ def fix_coordinate(segments, all_seg , smap):
                             if abs(segments[s1].start - np.mean([i.ref_start ,i.ref_end])) < limit:
                                 segments[s1].start = min([i.ref_start ,i.ref_end])
                                 segments[s1].bp = [min([i.ref_start ,i.ref_end]), segments[s1].bp[1]]
-                                if segments[s1].start < segments[s1-1].end and segments[s1].chromosome == segments[s1-1].chromosome:
+                                if s1 > 0 and segments[s1].start < segments[s1-1].end and segments[s1].chromosome == segments[s1-1].chromosome:
                                     segments[s1-1].end = segments[s1].start -1
                                     segments[s1-1].bp = [segments[s1-1].start, segments[s1-1].end]
                             elif abs(segments[s1].end - np.mean([i.ref_start ,i.ref_end])) < limit:
                                 segments[s1].end = max([i.ref_start, i.ref_end])
                                 segments[s1].bp = [segments[s1].bp[0], max([i.ref_start, i.ref_end])]
-                                if segments[s1].end > segments[s1+1].start and segments[s1].chromosome == segments[s1+1].chromosome:
+                                if s1 + 1 < len(segments) and segments[s1].end > segments[s1+1].start and segments[s1].chromosome == segments[s1+1].chromosome:
                                     segments[s1+1].start = segments[s1].end + 1
                                     segments[s1+1].bp = [segments[s1+1].start, segments[s1+1].end]
 
