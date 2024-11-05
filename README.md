@@ -75,7 +75,8 @@ python3 main.py -cnv cnv_calls_exp.txt -smap exp_refineFinal1_merged_filter_inve
 - `-centro`: Path to the centromere file (`hg38_centro.txt`).
 - `-cyto`: Path to the cytoband file (`cytoBand.txt`).
 
-As an example, you can use the test files in the `test_files` directory. If you have installed the prerequisites correctly, you can run the following command to see the outputs of OMKar for the test case:
+As an example, you can use the test files in the `test_files` directory. If you have installed the prerequisites correctly, you can run the following command to see the outputs of OMKar for the test case which contains Balanced translocation between
+Chr2 and Chr14, and duplication in Chr2:
 
 ```shell
 python3 main.py \
@@ -88,28 +89,22 @@ python3 main.py \
   -centro hg38_centro.txt \
   -cyto  cytoBand.txt
 ```
-### Output and Interpretation
-OMKar provides:
-1. **Molecular Karyotype**: A detailed text output listing chromosomal segments.
-2. **Graphical Karyotype**: A visual representation of chromosomes with event annotations.
-3. **ISCN Event Interpretation**: Events described in ISCN notation, detailing structural variations and chromosomal abnormalities.
-4. **Gene List Report**: Important genes near breakpoints are highlighted, aiding in genotype-to-phenotype interpretation.
+### Output
+After running OMKar, the following output files are generated, providing various analyses and visualizations of the karyotype and structural variations:
 
-**Example**:
-- A report may identify balanced translocations, aneuploidies, and SV types such as inversions and duplications with ISCN notation and provide corresponding affected gene information.
+1. **Chromosomal Graph PDF (`{name}.pdf`)**:
+   - A PDF file with a graphical representation of each chromosome. This document shows detected structural variations and other chromosomal features across all chromosomes for easy visualization and interpretation.
+2. **Segment Pathway File (`{name}.txt`)**:
+   - This file provides a detailed representation of the karyotype in terms of chromosomal segments. OMKar outputs a "Molecular Karyotype" in this text file format, which includes:
+      - **Segment List**: Each defined segment across the reference genome is listed with its segment number, chromosome, start and end coordinates, and the graph nodes representing the segment. Each segment has two nodes, connected by a segment edge, and is forward-oriented (end coordinate ≥ start coordinate). Segments are sorted by chromosome and coordinate, are non-overlapping, and exclude telomeric regions where applicable.
+      - **Reconstructed Paths**: These paths represent the karyotype by listing segments in the format "Path number = segment number followed by direction." The direction (`+` or `-`) indicates traversal direction, with `+` being forward (start to end) and `-` being reverse (end to start). For instance, "Path1 = 1+ 2+ 3-" means that the path traverses segment 1 forward, segment 2 forward, and segment 3 in reverse.
+      - **Centromere Count**: Each path includes the number of centromeres present, which should ideally be one to indicate a valid chromosome structure.
+3. **Structural Variation BED File (`{name}_SV.bed`)**:
+   - A BED format file detailing the locations of structural variations (SVs) identified in the genome. This file is useful for visualization in genome browsers and compatibility with other bioinformatics tools (e.g., UCSC Genome Browser).
 
-### Known Issues and Limitations
-- **False Positives**: The latest update includes more inversion and duplication-inversion calls, which may introduce some false positives.
-- **Acrocentric Region of Chr21**: Recurrent structural variations have been observed in the p-arm region of Chr21. This issue is under investigation.
+4. **Structural Variation Summary File (`{name}_SV.txt`)**:
+   - A summary of structural variations identified, including types (e.g., deletion, inversion, duplication), positions, confidence scores, and additional details like zygosity and allele frequency in the smap file format. 
 
-### Additional Notes
-OMKar is actively updated based on simulations and real sample performance. If needed, reset to an earlier version:
-```shell
-git reset --hard 61a1c62
-```
-For live updates and issue tracking, please check the GitHub repository.
-
----
 
 ### License
 MIT License.
