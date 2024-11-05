@@ -1,3 +1,4 @@
 /test_data/
 /outputs/
 /test.sh
+__pycache__/
