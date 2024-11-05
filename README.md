@@ -75,6 +75,19 @@ python3 main.py -cnv cnv_calls_exp.txt -smap exp_refineFinal1_merged_filter_inve
 - `-centro`: Path to the centromere file (`hg38_centro.txt`).
 - `-cyto`: Path to the cytoband file (`cytoBand.txt`).
 
+As an example, you can use the test files in the `test_files` directory. If you have installed the prerequisites correctly, you can run the following command to see the outputs of OMKar for the test case:
+
+```shell
+python3 main.py \
+  -cnv test_files/cnv_calls_exp.txt \
+  -smap test_files/exp_refineFinal1_merged_filter_inversions.smap \
+  -rcmap test_files/cnv_rcmap_exp.txt \
+  -xmap test_files/exp_refineFinal1_merged.xmap \
+  -n test \
+  -o test_files/ \
+  -centro hg38_centro.txt \
+  -cyto  cytoBand.txt
+```
 ### Output and Interpretation
 OMKar provides:
 1. **Molecular Karyotype**: A detailed text output listing chromosomal segments.
