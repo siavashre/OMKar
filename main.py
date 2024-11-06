@@ -770,6 +770,26 @@ def detect_receprical_translocation(sv, xmap, smap):  # sometimes one of these r
     return False, None
 
 
+def close_gaps_between_segments(segments):
+    # Sort segments by chromosome and start position to ensure they are consecutive
+    segments.sort(key=lambda seg: (int(seg.chromosome), seg.start))
+
+    for i in range(len(segments) - 1):
+        current_segment = segments[i]
+        next_segment = segments[i + 1]
+
+        # Check if both segments are on the same chromosome
+        if current_segment.chromosome == next_segment.chromosome:
+            # Calculate the gap between the end of the current segment and the start of the next segment
+            gap = next_segment.start - current_segment.end
+
+            if gap > 1:
+                # Adjust the end of the current segment to close the gap
+                current_segment.end = next_segment.start - 1
+                # Update the bp list with the new start and end values
+                current_segment.bp[-1] = current_segment.end
+
+    return segments
 
 
 
@@ -1167,11 +1187,13 @@ def adjust_and_remove_overlapping_segments(all_segments):
 def fix_coordinate(segments, all_seg , smap):
     limit = 200000
     for s1 in range(len(all_seg)):
+        dist = 999999999
         if all_seg[s1].type.startswith('loss'):
             for i in smap:
                 if i.sv_type.startswith('dele'):
                     if i.ref_c_id1 == all_seg[s1].chromosome :
-                        if abs(i.ref_start - all_seg[s1].start) < limit and abs(i.ref_end - all_seg[s1].end) < limit:
+                        if abs(i.ref_start - all_seg[s1].start) < limit and abs(i.ref_end - all_seg[s1].end) < min(limit, dist):
+                            dist = abs(i.ref_start - all_seg[s1].start) < limit and abs(i.ref_end - all_seg[s1].end)
                             all_seg[s1].end = i.ref_end
                             all_seg[s1].start = i.ref_start
                             all_seg[s1].bp = [i.ref_start, i.ref_end]
@@ -1180,12 +1202,14 @@ def fix_coordinate(segments, all_seg , smap):
                 if i.sv_type.startswith('dup'):
                     if i.ref_c_id1 == all_seg[s1].chromosome :#and str(i.ref_c_id1) == '10' :
                         if not i.sv_type.endswith('inverted'):
-                            if abs(i.ref_start - all_seg[s1].start) < limit and abs(i.ref_end - all_seg[s1].end) < limit:
+                            if abs(i.ref_start - all_seg[s1].start) < limit and abs(i.ref_end - all_seg[s1].end) < limit and dist > min(abs(i.ref_start - all_seg[s1].start),abs(i.ref_end - all_seg[s1].end)) :
+                                dist = min(abs(i.ref_start - all_seg[s1].start),abs(i.ref_end - all_seg[s1].end))
                                 all_seg[s1].end = i.ref_end
                                 all_seg[s1].start = i.ref_start
                                 all_seg[s1].bp = [i.ref_start, i.ref_end]
                         elif i.sv_type.endswith('inverted'): # need to check direction as well
-                            if abs(all_seg[s1].start - np.mean([i.ref_start ,i.ref_end])) < limit:
+                            if abs(all_seg[s1].start - np.mean([i.ref_start ,i.ref_end])) < limit and abs(all_seg[s1].start - np.mean([i.ref_start ,i.ref_end])) < dist:
+                                dist = abs(all_seg[s1].start - np.mean([i.ref_start ,i.ref_end]))
                                 all_seg[s1].start = min([i.ref_start ,i.ref_end])
                                 all_seg[s1].bp = [min([i.ref_start ,i.ref_end]), all_seg[s1].bp[1]]
                                 if s1 > 0 and all_seg[s1].start < all_seg[s1-1].end and all_seg[s1].chromosome == all_seg[s1-1].chromosome:
@@ -1195,7 +1219,8 @@ def fix_coordinate(segments, all_seg , smap):
                                     else:
                                         all_seg[s1].start = all_seg[s1-1].end + 1
                                         all_seg[s1].bp = [all_seg[s1].start, all_seg[s1].bp[1]]
-                            elif abs(all_seg[s1].end - np.mean([i.ref_start ,i.ref_end])) < limit:
+                            elif abs(all_seg[s1].end - np.mean([i.ref_start ,i.ref_end])) < limit and abs(all_seg[s1].end - np.mean([i.ref_start ,i.ref_end])) < dist:
+                                dist = abs(all_seg[s1].end - np.mean([i.ref_start ,i.ref_end]))
                                 all_seg[s1].end = max([i.ref_start, i.ref_end])
                                 all_seg[s1].bp = [all_seg[s1].bp[0], max([i.ref_start, i.ref_end])]
                                 if s1 + 1 < len(all_seg) and all_seg[s1].end > all_seg[s1+1].start and all_seg[s1].chromosome == all_seg[s1+1].chromosome:
@@ -1206,11 +1231,13 @@ def fix_coordinate(segments, all_seg , smap):
                                         all_seg[s1].end = all_seg[s1+1].start-1
                                         all_seg[s1].bp = [all_seg[s1].bp[0], all_seg[s1].end]
     for s1 in range(len(segments)):
+        dist = 99999999
         if segments[s1].type.startswith('loss'):
             for i in smap:
                 if i.sv_type.startswith('dele'):
                     if i.ref_c_id1 == segments[s1].chromosome :
-                        if abs(i.ref_start - segments[s1].start) < limit and abs(i.ref_end - segments[s1].end) < limit:
+                        if abs(i.ref_start - segments[s1].start) < limit and abs(i.ref_end - segments[s1].end) < min(limit, dist):
+                            dist = abs(i.ref_start - segments[s1].start) < limit and abs(i.ref_end - segments[s1].end)
                             segments[s1].end = i.ref_end
                             segments[s1].start = i.ref_start
                             segments[s1].bp = [i.ref_start , i.ref_end]
@@ -1219,12 +1246,13 @@ def fix_coordinate(segments, all_seg , smap):
                 if i.sv_type.startswith('dup'):
                     if i.ref_c_id1 == segments[s1].chromosome:# and str(i.ref_c_id1) == '6' :
                         if not i.sv_type.endswith('inverted'):
-                            if abs(i.ref_start - segments[s1].start) < limit and abs(i.ref_end - segments[s1].end) < limit:
+                            if abs(i.ref_start - segments[s1].start) < limit and abs(i.ref_end - segments[s1].end) < limit and dist > min(abs(i.ref_start - segments[s1].start),abs(i.ref_end - segments[s1].end)):
                                 segments[s1].end = i.ref_end
                                 segments[s1].start = i.ref_start
                                 segments[s1].bp = [i.ref_start , i.ref_end]
                         elif i.sv_type.endswith('inverted'):
-                            if abs(segments[s1].start - np.mean([i.ref_start ,i.ref_end])) < limit:
+                            if abs(segments[s1].start - np.mean([i.ref_start ,i.ref_end])) < limit and abs(segments[s1].start - np.mean([i.ref_start ,i.ref_end])) < dist:
+                                dist = abs(segments[s1].start - np.mean([i.ref_start ,i.ref_end]))
                                 segments[s1].start = min([i.ref_start ,i.ref_end])
                                 segments[s1].bp = [segments[s1].start, segments[s1].end]
                                 if s1 > 0 and segments[s1].start < segments[s1-1].end and segments[s1].chromosome == segments[s1-1].chromosome:
@@ -1234,7 +1262,8 @@ def fix_coordinate(segments, all_seg , smap):
                                     else:
                                         segments[s1].start = segments[s1 - 1].end + 1
                                         segments[s1].bp = [segments[s1].start, segments[s1].bp[1]]
-                            elif abs(segments[s1].end - np.mean([i.ref_start ,i.ref_end])) < limit:
+                            elif abs(segments[s1].end - np.mean([i.ref_start ,i.ref_end])) < limit and abs(segments[s1].end - np.mean([i.ref_start ,i.ref_end])) < dist:
+                                dist = abs(segments[s1].end - np.mean([i.ref_start ,i.ref_end]))
                                 segments[s1].end = max([i.ref_start, i.ref_end])
                                 segments[s1].bp = [segments[s1].bp[0], max([i.ref_start, i.ref_end])]
                                 if s1 + 1 < len(segments) and segments[s1].end > segments[s1+1].start and segments[s1].chromosome == segments[s1+1].chromosome:
@@ -1389,6 +1418,7 @@ def main():
                 segments.append(new_seg)
 
     segments.sort(key=lambda x: (int(x.chromosome), x.start))
+    segments = close_gaps_between_segments(segments)
     # for s in segments:
     #     print('asli', s.chromosome, s.start, s.end, s.int_cn, sorted(s.bp))
     with open(output2[:-3]+'bed','w', newline='') as bed:
