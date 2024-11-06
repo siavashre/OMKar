@@ -1130,6 +1130,40 @@ def merge_segments_all_seg_smap(segments, all_seg, smap, centro):
         if s not in segments:
             segments.append(s)
     return segments
+
+
+def adjust_and_remove_overlapping_segments(all_segments):
+    # Sort segments by chromosome and start position
+    all_segments.sort(key=lambda seg: (int(seg.chromosome), seg.start))
+
+    adjusted_segments = []
+    current_chromosome = None
+    prev_segment = None
+
+    for segment in all_segments:
+        # Check if we are still on the same chromosome
+        if current_chromosome != segment.chromosome:
+            current_chromosome = segment.chromosome
+            prev_segment = None  # Reset previous segment when chromosome changes
+
+        if prev_segment:
+            # Check if the current segment is fully contained within the previous segment
+            if prev_segment.start <= segment.start and prev_segment.end >= segment.end:
+                # Skip adding this segment, as it's fully contained within the previous one
+                continue
+            elif segment.start <= prev_segment.end:
+                # Adjust the start of the current segment to prevent overlap
+                segment.start = prev_segment.end + 1  # Ensure no overlap by adding 1 to prev_segment.end
+                segment.bp = [segment.start, segment.end]
+
+        # Add the current segment to the adjusted list (either non-overlapping or adjusted)
+        adjusted_segments.append(segment)
+        # Update the previous segment reference
+        prev_segment = segment
+
+    return adjusted_segments
+
+
 def fix_coordinate(segments, all_seg , smap):
     limit = 200000
     for s1 in range(len(all_seg)):
@@ -1144,7 +1178,7 @@ def fix_coordinate(segments, all_seg , smap):
         elif all_seg[s1].type.startswith('gain'):
             for i in smap:
                 if i.sv_type.startswith('dup'):
-                    if i.ref_c_id1 == all_seg[s1].chromosome :#and str(i.ref_c_id1) == '6' :
+                    if i.ref_c_id1 == all_seg[s1].chromosome :#and str(i.ref_c_id1) == '10' :
                         if not i.sv_type.endswith('inverted'):
                             if abs(i.ref_start - all_seg[s1].start) < limit and abs(i.ref_end - all_seg[s1].end) < limit:
                                 all_seg[s1].end = i.ref_end
@@ -1155,14 +1189,22 @@ def fix_coordinate(segments, all_seg , smap):
                                 all_seg[s1].start = min([i.ref_start ,i.ref_end])
                                 all_seg[s1].bp = [min([i.ref_start ,i.ref_end]), all_seg[s1].bp[1]]
                                 if s1 > 0 and all_seg[s1].start < all_seg[s1-1].end and all_seg[s1].chromosome == all_seg[s1-1].chromosome:
-                                    all_seg[s1-1].end = all_seg[s1].start -1
-                                    all_seg[s1-1].bp = [all_seg[s1-1].start, all_seg[s1-1].end]
+                                    if all_seg[s1-1].start < all_seg[s1].start:
+                                        all_seg[s1-1].end = all_seg[s1].start -1
+                                        all_seg[s1-1].bp = [all_seg[s1-1].start, all_seg[s1-1].end]
+                                    else:
+                                        all_seg[s1].start = all_seg[s1-1].end + 1
+                                        all_seg[s1].bp = [all_seg[s1].start, all_seg[s1].bp[1]]
                             elif abs(all_seg[s1].end - np.mean([i.ref_start ,i.ref_end])) < limit:
                                 all_seg[s1].end = max([i.ref_start, i.ref_end])
                                 all_seg[s1].bp = [all_seg[s1].bp[0], max([i.ref_start, i.ref_end])]
                                 if s1 + 1 < len(all_seg) and all_seg[s1].end > all_seg[s1+1].start and all_seg[s1].chromosome == all_seg[s1+1].chromosome:
-                                    all_seg[s1+1].start = all_seg[s1].end + 1
-                                    all_seg[s1+1].bp = [all_seg[s1+1].start, all_seg[s1+1].end]
+                                    if all_seg[s1].end < all_seg[s1+1].end :
+                                        all_seg[s1+1].start = all_seg[s1].end + 1
+                                        all_seg[s1+1].bp = [all_seg[s1+1].start, all_seg[s1+1].end]
+                                    else:
+                                        all_seg[s1].end = all_seg[s1+1].start-1
+                                        all_seg[s1].bp = [all_seg[s1].bp[0], all_seg[s1].end]
     for s1 in range(len(segments)):
         if segments[s1].type.startswith('loss'):
             for i in smap:
@@ -1184,18 +1226,34 @@ def fix_coordinate(segments, all_seg , smap):
                         elif i.sv_type.endswith('inverted'):
                             if abs(segments[s1].start - np.mean([i.ref_start ,i.ref_end])) < limit:
                                 segments[s1].start = min([i.ref_start ,i.ref_end])
-                                segments[s1].bp = [min([i.ref_start ,i.ref_end]), segments[s1].bp[1]]
+                                segments[s1].bp = [segments[s1].start, segments[s1].end]
                                 if s1 > 0 and segments[s1].start < segments[s1-1].end and segments[s1].chromosome == segments[s1-1].chromosome:
-                                    segments[s1-1].end = segments[s1].start -1
-                                    segments[s1-1].bp = [segments[s1-1].start, segments[s1-1].end]
+                                    if segments[s1 - 1].start < segments[s1].start:
+                                        segments[s1-1].end = segments[s1].start -1
+                                        segments[s1-1].bp = [segments[s1-1].start, segments[s1-1].end]
+                                    else:
+                                        segments[s1].start = segments[s1 - 1].end + 1
+                                        segments[s1].bp = [segments[s1].start, segments[s1].bp[1]]
                             elif abs(segments[s1].end - np.mean([i.ref_start ,i.ref_end])) < limit:
                                 segments[s1].end = max([i.ref_start, i.ref_end])
                                 segments[s1].bp = [segments[s1].bp[0], max([i.ref_start, i.ref_end])]
                                 if s1 + 1 < len(segments) and segments[s1].end > segments[s1+1].start and segments[s1].chromosome == segments[s1+1].chromosome:
-                                    segments[s1+1].start = segments[s1].end + 1
-                                    segments[s1+1].bp = [segments[s1+1].start, segments[s1+1].end]
+                                    if segments[s1].end < segments[s1 + 1].end:
+                                        segments[s1+1].start = segments[s1].end + 1
+                                        segments[s1+1].bp = [segments[s1+1].start, segments[s1+1].end]
+                                    else:
+                                        segments[s1].end = segments[s1+1].start-1
+                                        segments[s1].bp = [segments[s1].bp[0], segments[s1].end]
 
-    return  segments, all_seg
+    # segments.sort(key=lambda x: (int(x.chromosome), x.start, x.end))
+    # all_seg.sort(key=lambda x: (int(x.chromosome), x.start, x.end))
+    # for s1 in range(1,len(all_seg)):
+    #     if all_seg[s1-1].end > all_seg[s1].start:
+    #         all_seg[s1].start = all_seg[s1-1].end + 1
+    # for s1 in range(1,len(segments)):
+    #     if segments[s1-1].end > segments[s1].start:
+    #         segments[s1].start = segments[s1].end + 1
+    return  adjust_and_remove_overlapping_segments(segments), adjust_and_remove_overlapping_segments(all_seg)
 
 ######################################################################################################################################
 def main():
@@ -1218,6 +1276,8 @@ def main():
     segments, all_seg = parse_cnvcall(args.cnv)
     smap = parse_smap(args.smap)
     segments, all_seg = fix_coordinate(segments, all_seg, smap)
+    segments.sort(key=lambda x: (int(x.chromosome), x.start, x.end))
+    all_seg.sort(key=lambda x: (int(x.chromosome), x.start, x.end))
     segments = merge_segments_all_seg_smap(segments, all_seg, smap, centro)  # Need to debug this function
     segments.sort(key=lambda x: (int(x.chromosome), x.start))
     rcov, rcop = parse_rcmap(args.rcmap)
@@ -1535,7 +1595,7 @@ def main():
     Plot_graph(g, file, name)
     connected_components = find_connected_components(g)
     for component in connected_components:
-        # if 184 in component:
+        # if 102 in component:
             component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
     Plot_graph(g, file2, name)
@@ -1550,7 +1610,7 @@ def main():
     print(g.vertices)
     for component in connected_components:
             component_metadata[component_counter] = component
-            # if 184 in component:
+            # if 102 in component:
             component_edges = return_all_edges_in_cc(component, g)
             print(component)
             print(component_edges)
