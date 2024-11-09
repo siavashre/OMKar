@@ -1768,7 +1768,6 @@ def main():
         filepaths = find_input_file_paths(args.dir)
         sample_name = os.path.basename(os.path.normpath(args.dir))
         sys.stdout = open(f"{args.output}/logs/{sample_name}.stdout.txt", 'w')
-        sys.stderr = open(f"{args.output}/logs/{sample_name}.stderr.txt", 'w')
         sample_output_dir = f"{args.output}/omkar_output/"
         single_run(filepaths['cnv'], filepaths['smap'], filepaths['rcmap'], filepaths['xmap'], args.centro, sample_name, sample_output_dir)
         sys.stdout.close()
