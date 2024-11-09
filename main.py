@@ -17,6 +17,7 @@ from bionano_metadata import *
 import pandas as pd
 import csv
 from KarReporter import generate_html_report
+from KarReporter.KarUtils.read_OMKar_output import *
 rcParams['pdf.fonttype'] = 42
 
 
@@ -1287,7 +1288,7 @@ def fix_coordinate(segments, all_seg , smap):
     return  adjust_and_remove_overlapping_segments(segments), adjust_and_remove_overlapping_segments(all_seg)
 
 ######################################################################################################################################
-def single_run(cnv_path, smap_path, rcmap_path, xmap_path, centro_path, name, output_path):
+def run_omkar(cnv_path, smap_path, rcmap_path, xmap_path, centro_path, name, output_path):
     segments, all_seg = parse_cnvcall(cnv_path)
     smap = parse_smap(smap_path)
     segments, all_seg = fix_coordinate(segments, all_seg, smap)
@@ -1307,9 +1308,10 @@ def single_run(cnv_path, smap_path, rcmap_path, xmap_path, centro_path, name, ou
     xmap = parse_xmap(xmap_path)
     repo_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(f'{output_path}/{name}/', exist_ok=True)
-    output = f"{output_path}/{name}/{name}.txt"
+    output = f"{output_path}/{name}/{name}_raw.txt"
     output2 = f"{output_path}/{name}/{name}_SV.txt"
     output3 = f"{output_path}/{name}/{name}_flagged.txt"
+    output4 = f"{output_path}/{name}/{name}.txt"
     file = f"{output_path}/{name}/{name}.pdf"
     file2 = f"{output_path}/{name}/{name}_2.png"
 
@@ -1704,6 +1706,25 @@ def single_run(cnv_path, smap_path, rcmap_path, xmap_path, centro_path, name, ou
                     f2.write('Path' + str(c) + ' = ' + structure + '\t score = ' + str(scores[jj]) + '\n')
                     c += 1
 
+    ## post-processing
+    post_process_input = output
+    post_process_output = output4
+    validation_code = validate_OMKar_output_format(output,
+                                                   cont_allowance=200000,
+                                                   span_allowance=200000,
+                                                   forbidden_region_file=get_metadata_file_path('acrocentric_telo_cen.bed'))
+    if validation_code:
+        path_list, segment_dict = read_OMKar_output(post_process_input, return_segment_dict=True)
+        processed_path_list, segment_obj_to_idx_dict = post_process_OMKar_output(path_list,
+                                                                                 gap_merge_allowance=5,
+                                                                                 isolate_centromere=True,
+                                                                                 forbidden_region_file=get_metadata_file_path('acrocentric_telo_cen.bed'))
+        write_MK_file(post_process_output, processed_path_list, segment_obj_to_idx_dict)
+    else:
+        ## if validation failed, keep original omkar output
+        print(f"output format validation failed, the report may include un-intended calls; file: {post_process_output}", file=sys.stderr)
+        shutil.copy2(post_process_input, post_process_output)
+
 def find_input_file_paths(dir):
     """
     auto detect between Bionano Solve output structure, OR curated output structure
@@ -1769,7 +1790,7 @@ def main():
         sample_name = os.path.basename(os.path.normpath(args.dir))
         sys.stdout = open(f"{args.output}/logs/{sample_name}.stdout.txt", 'w')
         sample_output_dir = f"{args.output}/omkar_output/"
-        single_run(filepaths['cnv'], filepaths['smap'], filepaths['rcmap'], filepaths['xmap'], args.centro, sample_name, sample_output_dir)
+        run_omkar(filepaths['cnv'], filepaths['smap'], filepaths['rcmap'], filepaths['xmap'], args.centro, sample_name, sample_output_dir)
         sys.stdout.close()
         sys.stdout = default_stdout
 
