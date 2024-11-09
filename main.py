@@ -1,5 +1,6 @@
 from collections import defaultdict
-from os.path import exists
+import os
+import sys
 from parsers import *
 import numpy as np
 from scipy import interpolate
@@ -12,9 +13,10 @@ from copy import deepcopy
 import math
 from matplotlib import rcParams
 from utill import *
-from  bionano_metadata import *
+from bionano_metadata import *
 import pandas as pd
 import csv
+from KarReporter import generate_html_report
 rcParams['pdf.fonttype'] = 42
 
 
@@ -989,7 +991,7 @@ def convert_path_to_segment(p, component_edges,g):  # this is important function
             if (current_node, next_node, 'S') not in component_edge_dict and (next_node, current_node, 'S') not in component_edge_dict:
                 # print(component_edge_dict)
                 # print(edge_labels)
-                raise RuntimeError('illegal follow up of SV/R, no S present')
+                raise RuntimeError(f'illegal follow up of SV/R, no S present: {component_edge_dict}; {edge_labels}; {p}; {component_edges}')
             else:
                 if (current_node, next_node, 'S') in component_edge_dict:
                     append_and_reduce_multiplicity(current_node, next_node, 'S')
@@ -1285,45 +1287,32 @@ def fix_coordinate(segments, all_seg , smap):
     return  adjust_and_remove_overlapping_segments(segments), adjust_and_remove_overlapping_segments(all_seg)
 
 ######################################################################################################################################
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-cnv", "--cnv", help="path to cnv call (cnv_call_exp.txt)", required=True)
-    parser.add_argument("-smap", "--smap", help="path to smap file", required=True)
-    parser.add_argument("-rcmap", "--rcmap", help="path to CNV rcmap file (cnv_rcmap_exp.txt)", required=True)
-    parser.add_argument("-xmap", "--xmap", help="path to contig alignments file xmap", required=True)
-    parser.add_argument("-centro", "--centro", help="path to file contains centromere coordinates", required=False)
-    parser.add_argument("-n", "--name", help="output name", required=True)
-    parser.add_argument("-o", "--output", help="path to output dir", required=True)
-    parser.add_argument("-cyto", "--cyto", help="path to file contains cytoband coordinates", required=False)
-    args = parser.parse_args()
-    global  centro
-    if args.centro is not None:  # this will parse centromere region. It can be hard coded.
-        centro = parse_centro(args.centro)
-    else:
-        centro = None
-    # masked_region = parse_forbiden_region('/nucleus/projects/sraeisid/Bionano_vitual_kt/OMKar/merged_forbidden_regions_unique_hg38.bed')
-    segments, all_seg = parse_cnvcall(args.cnv)
-    smap = parse_smap(args.smap)
+def single_run(cnv_path, smap_path, rcmap_path, xmap_path, centro_path, name, output_path):
+    segments, all_seg = parse_cnvcall(cnv_path)
+    smap = parse_smap(smap_path)
     segments, all_seg = fix_coordinate(segments, all_seg, smap)
     segments.sort(key=lambda x: (int(x.chromosome), x.start, x.end))
     all_seg.sort(key=lambda x: (int(x.chromosome), x.start, x.end))
+    global centro
+    centro = parse_centro(centro_path)
     segments = merge_segments_all_seg_smap(segments, all_seg, smap, centro)  # Need to debug this function
     segments.sort(key=lambda x: (int(x.chromosome), x.start))
-    rcov, rcop = parse_rcmap(args.rcmap)
+    rcov, rcop = parse_rcmap(rcmap_path)
     chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
-    # chrX_cn = 2
     chrX_cn = round(np.average(list(rcop['23'].values())))
-    print('dashag', np.average(list(rcop['23'].values())), chrX_cn,chrY_cn)
+    print('dashag', np.average(list(rcop['23'].values())), chrX_cn, chrY_cn)
     if chrY_cn > 0:
-        chrX_cn = max(1, chrX_cn)   
-    print('dashag', np.average(list(rcop['23'].values())), chrX_cn,chrY_cn)
-    xmap = parse_xmap(args.xmap)
-    output = args.output + '/' + args.name + '.txt'
-    output2 = args.output + '/' + args.name + '_SV.txt'
-    output3 = args.output + '/' + args.name + '_flagged.txt'
-    file = args.output + '/' + args.name + '.pdf'
-    file2 = args.output + '/' + args.name + '_2.png'
-    name = args.name
+        chrX_cn = max(1, chrX_cn)
+    print('dashag', np.average(list(rcop['23'].values())), chrX_cn, chrY_cn)
+    xmap = parse_xmap(xmap_path)
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(f'{output_path}/{name}/', exist_ok=True)
+    output = f"{output_path}/{name}/{name}.txt"
+    output2 = f"{output_path}/{name}/{name}_SV.txt"
+    output3 = f"{output_path}/{name}/{name}_flagged.txt"
+    file = f"{output_path}/{name}/{name}.pdf"
+    file2 = f"{output_path}/{name}/{name}_2.png"
+
     svs = []
     segments = extend_segments_cn(segments, all_seg)  # fill the gap between calls.
     segments_contains_masked_regions = []
@@ -1421,13 +1410,15 @@ def main():
     segments = close_gaps_between_segments(segments)
     # for s in segments:
     #     print('asli', s.chromosome, s.start, s.end, s.int_cn, sorted(s.bp))
-    with open(output2[:-3]+'bed','w', newline='') as bed:
+    with open(output2.replace('txt', 'bed'), 'w', newline='') as bed:
         bed_writer = csv.writer(bed, delimiter='\t')
         bed_writer.writerow(['chromosome', 'start', 'end', 'SV_type', 'smap_id', 'confidence'])
         with open(output2, 'w') as f:
-            f.write('#h\tSmapEntryID\tQryContigID\tRefcontigID1\tRefcontigID2\tQryStartPos\tQryEndPos\tRefStartPos\tRefEndPos\tConfidence\tType\tXmapID1\tXmapID2\tLinkID\tQryStartIdx\tQryEndIdx\tRefStartIdx\tRefEndIdx\tZygosity\tGenotype\tGenotypeGroup\tRawConfidence\tRawConfidenceLeft\tRawConfidenceRight\tRawConfidenceCenter\tSVsize\tSVfreq\tOrientation\tVAF\n')
+            f.write(
+                '#h\tSmapEntryID\tQryContigID\tRefcontigID1\tRefcontigID2\tQryStartPos\tQryEndPos\tRefStartPos\tRefEndPos\tConfidence\tType\tXmapID1\tXmapID2\tLinkID\tQryStartIdx\tQryEndIdx\tRefStartIdx\tRefEndIdx\tZygosity\tGenotype\tGenotypeGroup\tRawConfidence\tRawConfidenceLeft\tRawConfidenceRight\tRawConfidenceCenter\tSVsize\tSVfreq\tOrientation\tVAF\n')
             for i in smap:
-                if i.sv_type.startswith('dele') and not i.sv_type.endswith('nbase') and not i.sv_type.endswith('tiny') and i.size > 50000 and i.size < 1000000 and i.confidence > 0.8:
+                if i.sv_type.startswith('dele') and not i.sv_type.endswith('nbase') and not i.sv_type.endswith(
+                        'tiny') and i.size > 50000 and i.size < 1000000 and i.confidence > 0.8:
                     f.write(i.line)
                     bed_writer.writerow([i.ref_c_id1, i.ref_start, i.ref_end, i.sv_type, i.smap_id, i.confidence])
                 elif i.sv_type == 'duplication' or i.sv_type == 'duplication_split' or i.sv_type == 'duplication_inverted':
@@ -1435,13 +1426,13 @@ def main():
                     bed_writer.writerow([i.ref_c_id1, i.ref_start, i.ref_end, i.sv_type, i.smap_id, i.confidence])
                 elif i.sv_type == 'inversion' and i.confidence >= 0.7:
                     f.write(i.line)
-                    bed_writer.writerow([i.ref_c_id1, i.ref_start, i.ref_end, i.sv_type, i.smap_id,i.confidence])
+                    bed_writer.writerow([i.ref_c_id1, i.ref_start, i.ref_end, i.sv_type, i.smap_id, i.confidence])
         f.close()
     for i in smap:
         # translocation applied filters.
         if i.sv_type.startswith('trans') and i.confidence >= 0.05 and not i.sv_type.endswith('common') and not i.sv_type.endswith('oveerlap') and (
                 i.ref_c_id1 != i.ref_c_id2 or abs(i.ref_end - i.ref_start) > 300000):
-            svs.append(i) #fixed
+            svs.append(i)  # fixed
             exist, s = detect_receprical_translocation(i, xmap, smap)
             if exist:
                 svs.append(s)
@@ -1457,11 +1448,11 @@ def main():
                         _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
                         svs.append(i)
                         print(i.line.strip())
-                    elif i.confidence >= 0.98 and i.size > 2000000 : #This is a limit for detection thos misslabeld translocation as deletion in Bionano Pipeline
-                    #     # _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
+                    elif i.confidence >= 0.98 and i.size > 2000000:  # This is a limit for detection thos misslabeld translocation as deletion in Bionano Pipeline
+                        #     # _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
                         svs.append(i)
                     #     print(i.line.strip())
-                        # print('Gerye', i.line.strip())
+                    # print('Gerye', i.line.strip())
                 elif i.size > 500000 and abs(i.ref_end - i.ref_start) > 500000:  # this would be for insertion length more than 500Kbp
                     svs.append(i)
                     print(i.line.strip())
@@ -1618,44 +1609,43 @@ def main():
             g.return_node(b).append_edges(a)
         # g.edges.append((b,a,0,'SV'))
     g.print_node()
-    g.output_node(args.output + '/' + args.name + ".preILP_nodes.txt")
+    g.output_node(f"{output_path}/{name}/{name}.preILP_nodes.txt")
     print('Siavash')
     print(g.edges)
-    g.output_edges(args.output + '/' + args.name + ".preILP_edges.txt")
+    g.output_edges(f"{output_path}/{name}/{name}.preILP_edges.txt")
     Plot_graph(g, file, name)
     connected_components = find_connected_components(g)
     for component in connected_components:
         # if 102 in component:
-            component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
+        component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
     Plot_graph(g, file2, name)
     paths = []
     edges_with_dummy = []
 
-    import os
     component_counter = 0
     component_metadata = {}
-    os.makedirs(args.output + '/postILP_components/', exist_ok=True)
-    os.makedirs(args.output + '/all_edges_with_dummies/', exist_ok=True)
+    os.makedirs(f"{output_path}/{name}/postILP_components/", exist_ok=True)
+    os.makedirs(f"{output_path}/{name}/all_edges_with_dummies/", exist_ok=True)
     print(g.vertices)
     for component in connected_components:
-            component_metadata[component_counter] = component
-            # if 102 in component:
-            component_edges = return_all_edges_in_cc(component, g)
-            print(component)
-            print(component_edges)
-            out_file = args.output + '/postILP_components/' + args.name + ".postILP_component_{}.txt".format(component_counter)
-            with open(out_file, 'w') as fp_write:
-                fp_write.write(str(component) + '\n')
-                for edge_itr in component_edges:
-                    fp_write.write(str(edge_itr) + '\n')
+        component_metadata[component_counter] = component
+        # if 102 in component:
+        component_edges = return_all_edges_in_cc(component, g)
+        print(component)
+        print(component_edges)
+        out_file = f"{output_path}/{name}/postILP_components/{name}.postILP_component_{component_counter}.txt"
+        with open(out_file, 'w') as fp_write:
+            fp_write.write(str(component) + '\n')
+            for edge_itr in component_edges:
+                fp_write.write(str(edge_itr) + '\n')
 
-            out_file = args.output + '/all_edges_with_dummies/' + args.name + ".with_dummies_component_{}.txt".format(component_counter)
-            euler_tour, component_edges_with_dummies = printEulerTour(component, component_edges, g, out_file)
-            paths.append(euler_tour)
-            edges_with_dummy.append(component_edges_with_dummies)
-            component_counter += 1
-    metadata_file = args.output + '/postILP_components/' + args.name + ".postILP.metadata.txt"
+        out_file = f"{output_path}/{name}/all_edges_with_dummies/{name}.with_dummies_component_{component_counter}.txt"
+        euler_tour, component_edges_with_dummies = printEulerTour(component, component_edges, g, out_file)
+        paths.append(euler_tour)
+        edges_with_dummy.append(component_edges_with_dummies)
+        component_counter += 1
+    metadata_file = f"{output_path}/{name}/postILP_components/{name}.postILP.metadata.txt"
     with open(metadata_file, 'w') as fp_write:
         for key, value in component_metadata.items():
             fp_write.write("{}\t{}\n".format(key, value))
@@ -1673,18 +1663,11 @@ def main():
                 f.write('Segment\t{id}\t{chrom}\t{start}\t{end}\t{snode}\t{enode}\n'.format(id=number, chrom=v.chromosome, start=v.pos, end=u.pos, snode=v.id,
                                                                                             enode=u.id))
                 f2.write('Segment\t{id}\t{chrom}\t{start}\t{end}\t{snode}\t{enode}\n'.format(id=number, chrom=v.chromosome, start=v.pos, end=u.pos, snode=v.id,
-                                                                                            enode=u.id))
-                # a1, a2, a3 = check_contains_masked_region(masked_region[int(v.chromosome)], v.pos, u.pos)
-                # if a2:
-                #     segments_border_masked_regions_start.append(number)
-                # if a3:
-                #     segments_border_masked_regions_end.append(number)
-                # if a1:
-                #     segments_contains_masked_regions.append(number)
+                                                                                             enode=u.id))
                 number += 1
             c = 1
             for path_idx, p in enumerate(paths):
-                structures, scores = convert_path_to_segment(p, edges_with_dummy[path_idx],g)
+                structures, scores = convert_path_to_segment(p, edges_with_dummy[path_idx], g)
                 for jj in range(len(structures)):
                     structure = structures[jj]
                     if structure.endswith(' '):
@@ -1697,30 +1680,111 @@ def main():
                     for i in range(len(paths_structure)):
                         direction = paths_structure[i][-1]
                         seg = int(paths_structure[i][:-1])
-                        if (direction == '-' and seg in segments_border_masked_regions_end)  and i>0:
-                            prev_dir = paths_structure2[i-1][-1]
-                            prev_seg = int(paths_structure2[i-1][:-1])
-                            if prev_dir != direction or prev_seg - seg !=1:
-                                paths_structure[i] ="*"+paths_structure[i]
-                        if (direction == '-' and seg in segments_border_masked_regions_start)  and i < len(paths_structure)-1:
-                            next_dir = paths_structure2[i+1][-1]
-                            next_seg = int(paths_structure2[i+1][:-1])
-                            if next_dir != direction or next_seg - seg !=-1:
-                                paths_structure[i] +="*"
-                        if (direction == '+' and seg in segments_border_masked_regions_start)  and i>0:
-                            prev_dir = paths_structure2[i-1][-1]
-                            prev_seg = int(paths_structure2[i-1][:-1])
-                            if prev_dir != direction or prev_seg - seg !=-1:
-                                paths_structure[i] ="*"+paths_structure[i]
-                        if (direction == '+' and seg in segments_border_masked_regions_end) and i < len(paths_structure)-1:
-                            next_dir = paths_structure2[i+1][-1]
-                            next_seg = int(paths_structure2[i+1][:-1])
+                        if (direction == '-' and seg in segments_border_masked_regions_end) and i > 0:
+                            prev_dir = paths_structure2[i - 1][-1]
+                            prev_seg = int(paths_structure2[i - 1][:-1])
+                            if prev_dir != direction or prev_seg - seg != 1:
+                                paths_structure[i] = "*" + paths_structure[i]
+                        if (direction == '-' and seg in segments_border_masked_regions_start) and i < len(paths_structure) - 1:
+                            next_dir = paths_structure2[i + 1][-1]
+                            next_seg = int(paths_structure2[i + 1][:-1])
+                            if next_dir != direction or next_seg - seg != -1:
+                                paths_structure[i] += "*"
+                        if (direction == '+' and seg in segments_border_masked_regions_start) and i > 0:
+                            prev_dir = paths_structure2[i - 1][-1]
+                            prev_seg = int(paths_structure2[i - 1][:-1])
+                            if prev_dir != direction or prev_seg - seg != -1:
+                                paths_structure[i] = "*" + paths_structure[i]
+                        if (direction == '+' and seg in segments_border_masked_regions_end) and i < len(paths_structure) - 1:
+                            next_dir = paths_structure2[i + 1][-1]
+                            next_seg = int(paths_structure2[i + 1][:-1])
                             if next_dir != direction or next_seg - seg != 1:
-                                paths_structure[i] +="*"
+                                paths_structure[i] += "*"
                     structure = ' '.join(i for i in paths_structure)
                     f2.write('Path' + str(c) + ' = ' + structure + '\t score = ' + str(scores[jj]) + '\n')
                     c += 1
 
+def find_input_file_paths(dir):
+    """
+    auto detect between Bionano Solve output structure, OR curated output structure
+    :param dir: master dir of the sample containing all input files
+    :return: the file paths for the four input files
+    """
+    cnv_filename = 'cnv_calls_exp.txt'
+    rcmap_filename = 'cnv_rcmap_exp.txt'
+    xmap_filename = 'exp_refineFinal1_merged.xmap'
+    smap_filename = 'exp_refineFinal1_merged_filter_inversions.smap'
 
+    # bionano default filepath
+    cnv_filepath = f"{dir}/contigs/alignmolvref/copynumber/{cnv_filename}"
+    rcmap_filepath = f"{dir}/contigs/alignmolvref/copynumber/{rcmap_filename}"
+    xmap_filepath = f"{dir}/contigs/exp_refineFinal1_sv/merged_smaps/{xmap_filename}"
+    smap_filepath = f"{dir}/contigs/exp_refineFinal1_sv/merged_smaps/{smap_filename}"
+    if os.path.isfile(cnv_filepath) and os.path.isfile(rcmap_filepath) and os.path.isfile(xmap_filepath) and os.path.isfile(smap_filepath):
+        return {'cnv': cnv_filepath,
+                'rcmap': rcmap_filepath,
+                'xmap': xmap_filepath,
+                'smap': smap_filepath,
+                'dir_structure': 'bionano_default'}
+
+    # curated dir structure
+    if os.path.isfile(f"{dir}/{cnv_filename}") and os.path.isfile(f"{dir}/{rcmap_filename}") and os.path.isfile(f"{dir}/{xmap_filename}") and os.path.isfile(f"{dir}/{smap_filename}"):
+        cnv_filepath, rcmap_filepath, xmap_filepath, smap_filepath = f"{dir}/{cnv_filename}", f"{dir}/{rcmap_filename}", f"{dir}/{xmap_filename}", f"{dir}/{smap_filename}"
+        return {'cnv': cnv_filepath,
+                'rcmap': rcmap_filepath,
+                'xmap': xmap_filepath,
+                'smap': smap_filepath,
+                'dir_structure': 'curated'}
+
+    # debug use
+    bionano_status1 = os.path.isfile(f'{dir}/output/contigs/alignmolvref/copynumber/{cnv_filename}')
+    bionano_status2 = os.path.isfile(f'{dir}/output/contigs/alignmolvref/copynumber/{rcmap_filename}')
+    bionano_status3 = os.path.isfile(f'{dir}/output/contigs/exp_refineFinal1_sv/merged_smaps/{xmap_filename}')
+    bionano_status4 = os.path.isfile(f'{dir}/contigs/exp_refineFinal1_sv/merged_smaps/{smap_filename}')
+    print(f"attempted {dir}/output/contigs/alignmolvref/copynumber/{cnv_filename}: {bionano_status1}")
+    print(f"attempted {dir}/output/contigs/alignmolvref/copynumber/{rcmap_filename}: {bionano_status2}")
+    print(f"attempted {dir}/output/contigs/exp_refineFinal1_sv/merged_smaps/{xmap_filename}: {bionano_status3}")
+    print(f"attempted {dir}/contigs/exp_refineFinal1_sv/merged_smaps/{smap_filename}: {bionano_status4}")
+
+    raise RuntimeError(f'file structure could not be parsed: {dir}')
+
+def main():
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+    default_stdout = sys.stdout
+    default_centro_path = f'{repo_dir}/hg38_centro.txt'
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-dir", "--dir", help="path to directory containing input data", required=True)
+    parser.add_argument("-centro", "--centro", default=default_centro_path, help="path to file contains centromere coordinates", required=False)
+    parser.add_argument("-o", "--output", help="path to output dir", required=True)
+    parser.add_argument("-single", "--single", help="flag to singal only run on one sample", action='store_true')
+    parser.add_argument("-report", "--report", help="flag to generate html report", action='store_true')
+    parser.add_argument("-reportDebug", "--reportDebug", help="generate report debug in html report", action='store_true')
+    args = parser.parse_args()
+
+    os.makedirs(f'{args.output}/omkar_output/', exist_ok=True)
+    os.makedirs(f'{args.output}/logs/', exist_ok=True)
+    if args.single:
+        filepaths = find_input_file_paths(args.dir)
+        sample_name = os.path.basename(os.path.normpath(args.dir))
+        sys.stdout = open(f"{args.output}/logs/{sample_name}.stdout.txt", 'w')
+        sys.stderr = open(f"{args.output}/logs/{sample_name}.stderr.txt", 'w')
+        sample_output_dir = f"{args.output}/omkar_output/"
+        single_run(filepaths['cnv'], filepaths['smap'], filepaths['rcmap'], filepaths['xmap'], args.centro, sample_name, sample_output_dir)
+        sys.stdout.close()
+        sys.stdout = default_stdout
+
+    if args.report:
+        sys.stdout = open(f"{args.output}/logs/__report.stdout.txt", 'w')
+        os.makedirs(f'{args.output}/omkar_report/', exist_ok=True)
+        generate_html_report(True,
+                             None,
+                             '',
+                             f'{args.output}/omkar_output/',
+                             f'{args.output}/omkar_report/images/',
+                             f'{args.output}/omkar_report/',
+                             debug=args.reportDebug)
+        sys.stdout.close()
+        sys.stdout = default_stdout
 if __name__ == "__main__":
     main()

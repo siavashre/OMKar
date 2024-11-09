@@ -1,0 +1,3 @@
+[submodule "KarReporter"]
+	path = KarReporter
+	url = https://github.com/MolecularKaryotype/KarReporter
