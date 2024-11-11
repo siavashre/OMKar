@@ -1,6 +1,7 @@
 from collections import defaultdict
 import os
 import sys
+import shutil
 from parsers import *
 import numpy as np
 from scipy import interpolate
@@ -1758,14 +1759,22 @@ def find_input_file_paths(dir):
                 'dir_structure': 'curated'}
 
     # debug use
-    bionano_status1 = os.path.isfile(f'{dir}/output/contigs/alignmolvref/copynumber/{cnv_filename}')
-    bionano_status2 = os.path.isfile(f'{dir}/output/contigs/alignmolvref/copynumber/{rcmap_filename}')
-    bionano_status3 = os.path.isfile(f'{dir}/output/contigs/exp_refineFinal1_sv/merged_smaps/{xmap_filename}')
+    bionano_status1 = os.path.isfile(f'{dir}/contigs/alignmolvref/copynumber/{cnv_filename}')
+    bionano_status2 = os.path.isfile(f'{dir}/contigs/alignmolvref/copynumber/{rcmap_filename}')
+    bionano_status3 = os.path.isfile(f'{dir}/contigs/exp_refineFinal1_sv/merged_smaps/{xmap_filename}')
     bionano_status4 = os.path.isfile(f'{dir}/contigs/exp_refineFinal1_sv/merged_smaps/{smap_filename}')
+    curated_status1 = os.path.isfile(f'{dir}/{cnv_filename}')
+    curated_status2 = os.path.isfile(f'{dir}/{rcmap_filename}')
+    curated_status3 = os.path.isfile(f'{dir}/{xmap_filename}')
+    curated_status4 = os.path.isfile(f'{dir}/{smap_filename}')
     print(f"attempted {dir}/output/contigs/alignmolvref/copynumber/{cnv_filename}: {bionano_status1}")
     print(f"attempted {dir}/output/contigs/alignmolvref/copynumber/{rcmap_filename}: {bionano_status2}")
     print(f"attempted {dir}/output/contigs/exp_refineFinal1_sv/merged_smaps/{xmap_filename}: {bionano_status3}")
     print(f"attempted {dir}/contigs/exp_refineFinal1_sv/merged_smaps/{smap_filename}: {bionano_status4}")
+    print(f"attempted {dir}/{cnv_filename}: {curated_status1}")
+    print(f"attempted {dir}/{rcmap_filename}: {curated_status2}")
+    print(f"attempted {dir}/{xmap_filename}: {curated_status3}")
+    print(f"attempted {dir}/{smap_filename}: {curated_status4}")
 
     raise RuntimeError(f'file structure could not be parsed: {dir}')
 
@@ -1793,6 +1802,15 @@ def main():
         run_omkar(filepaths['cnv'], filepaths['smap'], filepaths['rcmap'], filepaths['xmap'], args.centro, sample_name, sample_output_dir)
         sys.stdout.close()
         sys.stdout = default_stdout
+    else:
+        for sample_dir in os.listdir(args.dir):
+            filepaths = find_input_file_paths(f"{args.dir}/{sample_dir}/")
+            sample_name = sample_dir
+            sys.stdout = open(f"{args.output}/logs/{sample_name}.stdout.txt", 'w')
+            sample_output_dir = f"{args.output}/omkar_output/"
+            run_omkar(filepaths['cnv'], filepaths['smap'], filepaths['rcmap'], filepaths['xmap'], args.centro, sample_name, sample_output_dir)
+            sys.stdout.close()
+            sys.stdout = default_stdout
 
     if args.report:
         sys.stdout = open(f"{args.output}/logs/__report.stdout.txt", 'w')
