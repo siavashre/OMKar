@@ -7,7 +7,7 @@ OMKar is a computational tool for automated karyotyping that utilizes Structural
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Usage](#usage)
-- [File Structure](#file-structure)
+- [Input File Structure](#input-file-structure)
 - [Output and Interpretation](#output-and-interpretation)
 - [Known Issues and Limitations](#known-issues-and-limitations)
 - [License](#license)
@@ -23,15 +23,43 @@ OMKar is a computational tool for automated karyotyping that utilizes Structural
   - `scipy` >=1.11.0
   - `pulp` >=2.7.0
   - `argparse` >=1.4.0
-- **Optional PDF Reports**: Requires TeXWork for generating PDF reports (HTML report generation only requires Python packages).
   `
 ### Installation
 Clone OMKar from GitHub and navigate to the working directory:
 ```shell
-git clone https://github.com/siavashre/OMKar.git
+git clone --recurse-submodules https://github.com/siavashre/OMKar.git
 ```
-### File Structure
-The input data directory must follow this structure:
+*The submodules are needed for generating the HTML reports.*
+
+### Input File Structure
+The input data directory needs to be either the Bionano Solve's default output structure, or a curated directory structure:
+
+Bionano default output DIR structure:
+```
+<data_dir>/
+    <sample_name1>/
+        contigs/
+            alignmolvref/
+                copynumber/
+                    cnv_calls_exp.txt
+                    cnv_rcmap_exp.txt
+            exp_refineFinal1_sv/
+                merged_smaps/
+                    exp_refineFinal1_merged.xmap
+                    exp_refineFinal1_merged_filter_inversions.smap
+    <sample_name2>/
+        contigs/
+            alignmolvref/
+                copynumber/
+                    cnv_calls_exp.txt
+                    cnv_rcmap_exp.txt
+            exp_refineFinal1_sv/
+                merged_smaps/
+                    exp_refineFinal1_merged.xmap
+                    exp_refineFinal1_merged_filter_inversions.smap
+    ...
+```
+Curated DIR structure:
 ```
 <data_dir>/
     <sample_name1>/
@@ -63,35 +91,32 @@ bash batch_run.sh data_dir [--out_dir out_dir] [--report report] [--debug debug]
 
 ---
 **Usage**:
-For running OMkar(Only the karyotype part) on a single case you can use:
+The default usage of OMKar is batch run all samples within an input data directory (detailed in [Input File Structure](#input-file-structure)). An optional flag `-single` can be used for a single-sample run. In a single sample run, 
+please pass the sample-directory instead of the master data-directory as the input directory.
+
 ```shell
-python3 main.py -cnv cnv_calls_exp.txt -smap exp_refineFinal1_merged_filter_inversions.smap -rcmap cnv_rcmap_exp.txt -xmap exp_refineFinal1_merged.xmap -n test -o output/ -centro hg38_centro.txt -cyto cytoBand.txt
+python3 main.py -dir input_dir -o output_dir [-centro custome_centromere_file] [-single] [-report] [-reportDebug]
 ```
-- `-smap`: Path to the structural variations map file (`exp_refineFinal1_merged_filter_inversions.smap`).
-- `-rcmap`: Path to the reference copy number map (`cnv_rcmap_exp.txt`).
-- `-xmap`: Path to the XMAP alignment file (`exp_refineFinal1_merged.xmap`).
-- `-n`: Name of the output file (`test`).
-- `-o`: Output directory path for storing OMKar results.
-- `-centro`: Path to the centromere file (`hg38_centro.txt`).
-- `-cyto`: Path to the cytoband file (`cytoBand.txt`).
+- `-dir`: Path to the input directory (detailed in [Input File Structure](#input-file-structure)). If using the default batch run, this should be the master data-directory containing each sample-directories. If using the single run flag, this should be the individual sample-directory.
+- `-o`: Path to the output directory (detailed in [Output Files](#output-files)).
+- `-centro`: (default: hg38 centromere coordinates, 'hg38_centro.txt') a custom centromere coordinate can be used.
+- `-single`: Flag for single-sample run. If used together with `-report`, the report will also be generated for the single sample.
+- `-report`: Flag to output the HTML report (this takes much longer than the standalone OMKar).
+- `-reportDebug`: Flag to output debugging information for the report, including the interpretation information.
 
 As an example, you can use the test files in the `test_files` directory. If you have installed the prerequisites correctly, you can run the following command to see the outputs of OMKar for the test case which contains Balanced translocation between
-Chr2 and Chr14, and duplication in Chr2:
+Chr2 and Chr14, and duplication in Chr2 (intended output in `test_intended_output/`):
 
 ```shell
 python3 main.py \
-  -cnv test_files/cnv_calls_exp.txt \
-  -smap test_files/exp_refineFinal1_merged_filter_inversions.smap \
-  -rcmap test_files/cnv_rcmap_exp.txt \
-  -xmap test_files/exp_refineFinal1_merged.xmap \
-  -n test \
-  -o test_files/ \
-  -centro hg38_centro.txt \
-  -cyto  cytoBand.txt
+  -dir test_input/ \
+  -o tets_output/ \
+  -report
 ```
 ### Output
-After running OMKar, the following output files are generated, providing various analyses and visualizations of the karyotype and structural variations:
+After running OMKar, the following output files are generated, providing various analyses and visualizations of the karyotype and structural variations. They are organized into subdirectories `OMKar_output/`, `OMKar_report/` (optional), and `logs/` (for debugging).
 
+In `OMKar_output/`:
 1. **Chromosomal Graph PDF (`{name}.pdf`)**:
    - A PDF file with a graphical representation of each chromosome. This document shows detected structural variations and other chromosomal features across all chromosomes for easy visualization and interpretation.
 2. **Segment Pathway File (`{name}.txt`)**:
@@ -101,10 +126,14 @@ After running OMKar, the following output files are generated, providing various
       - **Centromere Count**: Each path includes the number of centromeres present, which should ideally be one to indicate a valid chromosome structure.
 3. **Structural Variation BED File (`{name}_SV.bed`)**:
    - A BED format file detailing the locations of structural variations (SVs) identified in the genome. This file is useful for visualization in genome browsers and compatibility with other bioinformatics tools (e.g., UCSC Genome Browser).
-
 4. **Structural Variation Summary File (`{name}_SV.txt`)**:
    - A summary of structural variations identified, including types (e.g., deletion, inversion, duplication), positions, confidence scores, and additional details like zygosity and allele frequency in the smap file format. 
 
+In `OMKar_report/`:
+1. **Report Summary (`dashboard.html`)**:
+    - Open in a browser, this gives the summary HTML report for all samples ran. The summary includes the tally of SVs on each sample, prediction of disruption on DDG2P genes, and a summary visualization of the karyotype. It also links to the individual sample's HTML report.
+2. **Sample Report (`{name}.html`)**:
+    - Open in a browser, this gives the HTML report for a particular sample. This report is separated by chromosome clusters. Each cluster includes the ISCN SV list, predicted disrupted DDG2P genes, Molecular Karyotype output, tabulated BED file of the SV calls not incorporated, and a visualization of the chromosome cluster.
 
 ### License
 MIT License.
