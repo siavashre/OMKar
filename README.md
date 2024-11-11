@@ -110,7 +110,8 @@ Chr2 and Chr14, and duplication in Chr2 (intended output in `test_intended_outpu
 ```shell
 python3 main.py \
   -dir test_input/ \
-  -o tets_output/ \
+  -o test_output/ \
+  -single \
   -report
 ```
 ### Output
