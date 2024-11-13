@@ -15,7 +15,7 @@ OMKar is a computational tool for automated karyotyping that utilizes Structural
 
 ---
 ### Requirements
-- **Python packages**: All dependencies are Python-based for ease of installation.
+All dependencies are Python-based for ease of installation.
   - Python 3.6 or later.
   - `numpy` >=1.25.0
   - `matplotlib` >=3.8.0
@@ -23,7 +23,17 @@ OMKar is a computational tool for automated karyotyping that utilizes Structural
   - `scipy` >=1.11.0
   - `pulp` >=2.7.0
   - `argparse` >=1.4.0
-  `
+  - `jinja2` >= 3.1.4
+
+Full list of dependencies and version are prepared in `dependencies.txt`. 
+Installation of all dependencies can be done by
+
+```shell
+pip install -r dependencies.txt
+```
+
+*When running for the first time, it may take about a minute for matplotlib to adjust to the font environment.*
+  
 ### Installation
 Clone OMKar from GitHub and navigate to the working directory:
 ```shell
@@ -35,6 +45,24 @@ To update OMKar from GitHub:
 ```shell
 git pull
 git submodule update --init --recursive
+```
+
+To test if installation was correct, we included test files in the `test_files` directory. 
+You can run the following command to see the outputs of OMKar for the test case which contains Balanced translocation between
+Chr2 and Chr14, and duplication in Chr2:
+
+```shell
+python3 main.py \
+  -dir test_input/ \
+  -o test_output/ \
+  -single \
+  -report
+```
+
+A validation code is also provided to compare the output against the intended output:
+
+```shell
+python3 validate_installation.py
 ```
 
 ### Input File Structure
@@ -102,16 +130,6 @@ python3 main.py -dir input_dir -o output_dir [-centro custome_centromere_file] [
 - `-noImage`: Flag to output the HTML report without any image/visualizations. This saves a lot of time if only the ISCN interpretations are needed.
 - `-reportDebug`: Flag to output debugging information for the report, including the interpretation information.
 
-As an example, you can use the test files in the `test_files` directory. If you have installed the prerequisites correctly, you can run the following command to see the outputs of OMKar for the test case which contains Balanced translocation between
-Chr2 and Chr14, and duplication in Chr2 (intended output in `test_intended_output/`):
-
-```shell
-python3 main.py \
-  -dir test_input/ \
-  -o test_output/ \
-  -single \
-  -report
-```
 ### Output
 The output of OMKar is organized into subdirectories `OMKar_output/`, `OMKar_report/` (optional), and `logs/` (for debugging). This is consistent for both batch and single runs.
 ```
