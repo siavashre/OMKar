@@ -31,77 +31,75 @@ git clone --recurse-submodules https://github.com/siavashre/OMKar.git
 ```
 *The submodules are needed for generating the HTML reports.*
 
+To update OMKar from GitHub:
+```shell
+git pull
+git submodule update --init --recursive
+```
+
 ### Input File Structure
-The input data directory needs to be either the Bionano Solve's default output structure, or a curated directory structure:
+The four required files from Bionano Solve output are the following:
+1) cnv_calls_exp.txt
+2) cnv_rcmap_exp.txt
+3) exp_refineFinal1_merged_filter_inversions_orig.smap
+4) exp_refineFinal1_merged.xmap
+
+The input data directory needs to be either the Bionano Solve's default output structure, 
+or a curated directory structure. They are illustrated below (with the other un-used files hidden).
 
 Bionano default output DIR structure:
 ```
-<data_dir>/
-    <sample_name1>/
-        contigs/
-            alignmolvref/
-                copynumber/
-                    cnv_calls_exp.txt
-                    cnv_rcmap_exp.txt
-            exp_refineFinal1_sv/
-                merged_smaps/
-                    exp_refineFinal1_merged.xmap
-                    exp_refineFinal1_merged_filter_inversions.smap
-    <sample_name2>/
-        contigs/
-            alignmolvref/
-                copynumber/
-                    cnv_calls_exp.txt
-                    cnv_rcmap_exp.txt
-            exp_refineFinal1_sv/
-                merged_smaps/
-                    exp_refineFinal1_merged.xmap
-                    exp_refineFinal1_merged_filter_inversions.smap
-    ...
+<master_data_dir>/
+├── <sample1_dir>/
+│   └── contigs/
+│       ├── alignmolvref/
+│       │   └── copynumber/
+│       │       ├── cnv_calls_exp.txt
+│       │       └── cnv_rcmap_exp.txt
+│       └── exp_refineFinal1_sv/
+│           └── merged_smaps/
+│               ├── exp_refineFinal1_merged_filter_inversions_orig.smap
+│               └── exp_refineFinal1_merged.xmap
+├── <sample2_dir>/
+│   └── contigs/
+│       ├── alignmolvref/
+│       │   └── copynumber/
+│       │       ├── cnv_calls_exp.txt
+│       │       └── cnv_rcmap_exp.txt
+│       └── exp_refineFinal1_sv/
+│           └── merged_smaps/
+│               ├── exp_refineFinal1_merged_filter_inversions_orig.smap
+│               └── exp_refineFinal1_merged.xmap
+...
 ```
 Curated DIR structure:
 ```
-<data_dir>/
-    <sample_name1>/
-        cnv_calls_exp.txt
-        cnv_rcmap_exp.txt
-        exp_refineFinal1_merged.xmap
-        exp_refineFinal1_merged_filter_inversions.smap
-    <sample_name2>/
-        cnv_calls_exp.txt
-        cnv_rcmap_exp.txt
-        exp_refineFinal1_merged.xmap
-        exp_refineFinal1_merged_filter_inversions.smap
-    ...
+<master_data_dir>/
+├── <sample1_dir>/
+│   ├── cnv_calls_exp.txt
+│   ├── cnv_rcmap_exp.txt
+│   ├── exp_refineFinal1_merged_filter_inversions.smap
+│   └── exp_refineFinal1_merged.xmap
+├── <sample2_dir>/
+│   ├── cnv_calls_exp.txt
+│   ├── cnv_rcmap_exp.txt
+│   ├── exp_refineFinal1_merged_filter_inversions.smap
+│   └── exp_refineFinal1_merged.xmap
+...
 ```
 
 ### Usage
-Run OMKar in the `OMKar/` directory using the batch script:
-```shell
-bash batch_run.sh data_dir [--out_dir out_dir] [--report report] [--debug debug]
-```
-
-**Arguments**:
-| Argument                         | Type | Description                                                                                        |
-|----------------------------------|------|----------------------------------------------------------------------------------------------------|
-| `data_dir`                       | DIR  | Contains the data in the correct hierarchy                                                         |
-| (optional) `--out_dir <outdir>`  | DIR  | (default: OMKar/outputs/) Output location                                                          |
-| (optional) `--report <html/pdf>` | STR  | (default: None) Generating an HTML/PDF report for all cases ran                                    |
-| (optional) `--debug true`        | STR  | (default: false) Only useful when generating a report; include debug information in the report output |
-
----
-**Usage**:
-The default usage of OMKar is batch run all samples within an input data directory (detailed in [Input File Structure](#input-file-structure)). An optional flag `-single` can be used for a single-sample run. In a single sample run, 
-please pass the sample-directory instead of the master data-directory as the input directory.
+The default usage of OMKar is batch run all samples within an input master data directory (detailed in [Input File Structure](#input-file-structure)). 
 
 ```shell
-python3 main.py -dir input_dir -o output_dir [-centro custome_centromere_file] [-single] [-report] [-reportDebug]
+python3 main.py -dir input_dir -o output_dir [-centro custome_centromere_file] [-single] [-report] [-reportDebug] [-noImage]
 ```
 - `-dir`: Path to the input directory (detailed in [Input File Structure](#input-file-structure)). If using the default batch run, this should be the master data-directory containing each sample-directories. If using the single run flag, this should be the individual sample-directory.
 - `-o`: Path to the output directory (detailed in [Output Files](#output-files)).
 - `-centro`: (default: hg38 centromere coordinates, 'hg38_centro.txt') a custom centromere coordinate can be used.
 - `-single`: Flag for single-sample run. If used together with `-report`, the report will also be generated for the single sample.
 - `-report`: Flag to output the HTML report (this takes much longer than the standalone OMKar).
+- `-noImage`: Flag to output the HTML report without any image/visualizations. This saves a lot of time if only the ISCN interpretations are needed.
 - `-reportDebug`: Flag to output debugging information for the report, including the interpretation information.
 
 As an example, you can use the test files in the `test_files` directory. If you have installed the prerequisites correctly, you can run the following command to see the outputs of OMKar for the test case which contains Balanced translocation between
@@ -115,7 +113,40 @@ python3 main.py \
   -report
 ```
 ### Output
-After running OMKar, the following output files are generated, providing various analyses and visualizations of the karyotype and structural variations. They are organized into subdirectories `OMKar_output/`, `OMKar_report/` (optional), and `logs/` (for debugging).
+The output of OMKar is organized into subdirectories `OMKar_output/`, `OMKar_report/` (optional), and `logs/` (for debugging). This is consistent for both batch and single runs.
+```
+<output_dir>/
+├── omkar_output/
+│   ├── <sample1>/
+│   │   ├── <sample1>.pdf
+│   │   ├── <sample1>.txt
+│   │   ├── <sample1>_SV.bed
+│   │   └── <sample1>_SV.txt
+│   ├── <sample2>/
+│   │   ├── <sample2>.pdf
+│   │   ├── <sample2>.txt
+│   │   ├── <sample2>_SV.bed
+│   │   └── <sample2>_SV.txt
+│   └── ...
+└── omkar_report/
+│   ├── report_summary.html
+│   ├── <sample1>.html
+│   ├── <sample2>.html
+│   └── ...
+└── logs/
+    ├── <sample1>.stdout.txt
+    ├── <sample2>.stdout.txt
+    ├── ...
+    └── __report.stdout.txt
+
+```
+
+Of all the output, `{name}.txt` in each `omkar_output/{sample}/` contains the
+reconstructed karyotype. To view the report and ISCN interpretation,
+`omkar_report/report_summary.html` should be viewed in your browser first, 
+where the individual sample's report can be accessed within this HTML page.
+
+Below are the detailed information of each output files, providing various analyses and visualizations of the karyotype and structural variations.
 
 In `OMKar_output/`:
 1. **Chromosomal Graph PDF (`{name}.pdf`)**:
@@ -131,7 +162,7 @@ In `OMKar_output/`:
    - A summary of structural variations identified, including types (e.g., deletion, inversion, duplication), positions, confidence scores, and additional details like zygosity and allele frequency in the smap file format. 
 
 In `OMKar_report/`:
-1. **Report Summary (`dashboard.html`)**:
+1. **Report Summary (`report_summary.html`)**:
     - Open in a browser, this gives the summary HTML report for all samples ran. The summary includes the tally of SVs on each sample, prediction of disruption on DDG2P genes, and a summary visualization of the karyotype. It also links to the individual sample's HTML report.
 2. **Sample Report (`{name}.html`)**:
     - Open in a browser, this gives the HTML report for a particular sample. This report is separated by chromosome clusters. Each cluster includes the ISCN SV list, predicted disrupted DDG2P genes, Molecular Karyotype output, tabulated BED file of the SV calls not incorporated, and a visualization of the chromosome cluster.
