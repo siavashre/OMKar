@@ -95,7 +95,7 @@ The default usage of OMKar is batch run all samples within an input master data 
 python3 main.py -dir input_dir -o output_dir [-centro custome_centromere_file] [-single] [-report] [-noImage] [-reportDebug] 
 ```
 - `-dir`: Path to the input directory (detailed in [Input File Structure](#input-file-structure)). If using the default batch run, this should be the master data-directory containing each sample-directories. If using the single run flag, this should be the individual sample-directory.
-- `-o`: Path to the output directory (detailed in [Output Files](#output-files)).
+- `-o`: Path to the output directory (detailed in [Output](#output)).
 - `-centro`: (default: hg38 centromere coordinates, 'hg38_centro.txt') a custom centromere coordinate can be used.
 - `-single`: Flag for single-sample run. If used together with `-report`, the report will also be generated for the single sample.
 - `-report`: Flag to output the HTML report (this takes much longer than the standalone OMKar).
