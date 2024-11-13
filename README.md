@@ -92,7 +92,7 @@ Curated DIR structure:
 The default usage of OMKar is batch run all samples within an input master data directory (detailed in [Input File Structure](#input-file-structure)). 
 
 ```shell
-python3 main.py -dir input_dir -o output_dir [-centro custome_centromere_file] [-single] [-report] [-reportDebug] [-noImage]
+python3 main.py -dir input_dir -o output_dir [-centro custome_centromere_file] [-single] [-report] [-noImage] [-reportDebug] 
 ```
 - `-dir`: Path to the input directory (detailed in [Input File Structure](#input-file-structure)). If using the default batch run, this should be the master data-directory containing each sample-directories. If using the single run flag, this should be the individual sample-directory.
 - `-o`: Path to the output directory (detailed in [Output Files](#output-files)).
