@@ -5,3 +5,4 @@ __pycache__/
 .idea/
 /test_batch_input/
 /test_batch_output/
+/test_output/

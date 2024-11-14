@@ -1789,6 +1789,7 @@ def main():
     parser.add_argument("-o", "--output", help="path to output dir", required=True)
     parser.add_argument("-single", "--single", help="flag to singal only run on one sample", action='store_true')
     parser.add_argument("-report", "--report", help="flag to generate html report", action='store_true')
+    parser.add_argument("-noImage", "--noImage", help="flag to disable image generation", action='store_true')
     parser.add_argument("-reportDebug", "--reportDebug", help="generate report debug in html report", action='store_true')
     args = parser.parse_args()
 
@@ -1813,13 +1814,14 @@ def main():
             sys.stdout = default_stdout
 
     if args.report:
+        generate_image = not args.noImage
         sys.stdout = open(f"{args.output}/logs/__report.stdout.txt", 'w')
         os.makedirs(f'{args.output}/omkar_report/', exist_ok=True)
-        generate_html_report(True,
+        generate_html_report(generate_image,
                              None,
                              '',
                              f'{args.output}/omkar_output/',
-                             f'{args.output}/omkar_report/images/',
+                             f'{args.output}/omkar_report/clustered_karyotype_images/',
                              f'{args.output}/omkar_report/',
                              debug=args.reportDebug)
         sys.stdout.close()
