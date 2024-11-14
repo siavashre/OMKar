@@ -33,7 +33,11 @@ pip install -r dependencies.txt
 ```
 
 *When running for the first time, it may take about a minute for matplotlib to adjust to the font environment.*
-  
+
+Alternatively, a python virtual environment was prepared. You can launch it using
+`source omkar_env/bin/activate`, and all dependencies should be ready to run. To
+deactivate, run `deactivate`.
+
 ### Installation
 Clone OMKar from GitHub and navigate to the working directory:
 ```shell

@@ -17,7 +17,6 @@ from utill import *
 from bionano_metadata import *
 import pandas as pd
 import csv
-from KarReporter import generate_html_report
 from KarReporter.KarUtils.read_OMKar_output import *
 rcParams['pdf.fonttype'] = 42
 
@@ -1814,6 +1813,7 @@ def main():
             sys.stdout = default_stdout
 
     if args.report:
+        from KarReporter import generate_html_report
         generate_image = not args.noImage
         sys.stdout = open(f"{args.output}/logs/__report.stdout.txt", 'w')
         os.makedirs(f'{args.output}/omkar_report/', exist_ok=True)
