@@ -51,7 +51,7 @@ This prevents files removed in previous versions from being downloaded (they are
 in getting the full git repo, use `git clone --recurse-submodules https://github.com/siavashre/OMKar.git`
 
 
-**Update OMKar from GitHub:**
+**Update OMKar from GitHub (if a previous clone exists):**
 ```shell
 git pull
 git submodule update --init --recursive
