@@ -40,13 +40,17 @@ with cleaner dependency installation. `python -m venv omkar_env` to create the e
 `pip install -r dependencies.txt`. To deactivate, run `deactivate`.
 
 ### Installation
-Clone OMKar from GitHub and navigate to the working directory:
+**Clone OMKar from GitHub and navigate to the working directory:**
 ```shell
 git clone --recurse-submodules https://github.com/siavashre/OMKar.git
 ```
 *The submodules are needed for generating the HTML reports.*
 
-To update OMKar from GitHub:
+Optionally, if cloning seems slow, using `git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/siavashre/OMKar.git`
+will get a shallow copy of the current version of OMKar. This prevents the download
+of files removed in current version but are in the history.
+
+**Update OMKar from GitHub:**
 ```shell
 git pull
 git submodule update --init --recursive
