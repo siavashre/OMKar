@@ -42,13 +42,14 @@ with cleaner dependency installation. `python -m venv omkar_env` to create the e
 ### Installation
 **Clone OMKar from GitHub and navigate to the working directory:**
 ```shell
-git clone --recurse-submodules https://github.com/siavashre/OMKar.git
+git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/siavashre/OMKar.git
 ```
 *The submodules are needed for generating the HTML reports.*
 
-Optionally, if cloning seems slow, using `git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/siavashre/OMKar.git`
-will get a shallow copy of the current version of OMKar. This prevents the download
-of files removed in current version but are in the history.
+The depth and shallow flags create a shallow copy of the current version OMKar, improving download time significantly.
+This prevents files removed in previous versions from being downloaded (they are for development use only). If you are interested
+in getting the full git repo, use `git clone --recurse-submodules https://github.com/siavashre/OMKar.git`
+
 
 **Update OMKar from GitHub:**
 ```shell
