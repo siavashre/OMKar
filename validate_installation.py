@@ -1,6 +1,13 @@
 import filecmp
 import os
 
+def compare_files_ignore_line_endings(file1, file2):
+    """Compare two text files ignoring CRLF/LF differences."""
+    with open(file1, 'r') as f1, open(file2, 'r') as f2:
+        lines1 = [line.rstrip('\r\n') for line in f1]
+        lines2 = [line.rstrip('\r\n') for line in f2]
+    return lines1 == lines2
+
 def compare_directories_recursively(dir1, dir2):
     comparison = filecmp.dircmp(dir1, dir2)
     differences_found = False
@@ -8,17 +15,17 @@ def compare_directories_recursively(dir1, dir2):
     # Check for files and directories only in dir1 or dir2
     if comparison.left_only:
         differences_found = True
-        print(f"File missing: ")
+        print("File missing:")
         for item in comparison.left_only:
             print(f"  {os.path.join(dir1, item)}")
 
     if comparison.right_only:
         differences_found = True
-        print(f"File added: ")
+        print("File added:")
         for item in comparison.right_only:
             print(f"  {os.path.join(dir2, item)}")
 
-    ## do not check the log content
+    # Do not check log content
     if dir1.split('/')[-1] != 'logs':
         # Check for files that are present in both directories but differ in content
         for diff_file in comparison.diff_files:
@@ -33,7 +40,7 @@ def compare_directories_recursively(dir1, dir2):
                 continue
             file1 = os.path.join(dir1, common_file)
             file2 = os.path.join(dir2, common_file)
-            if not filecmp.cmp(file1, file2, shallow=False):  # Compare content fully
+            if not compare_files_ignore_line_endings(file1, file2):
                 differences_found = True
                 print(f"Different content: {file1} and {file2}")
 
