@@ -48,6 +48,7 @@ class Graph:  # Class of graph
     def __init__(self):
         self.vertices = []  # list of Object of vertices
         self.edges = []  # list of edges. each edges is tuple of (u,v,M,type) u and v are vertices connected to each other M represent edge multiplicities and type can be "S", "SV", "R", "D"
+        self.terminal_vertices_ids = []  # subset of vertices that begin/end a chromosome
 
     def print_node(self):  # print all nodes
         for v in self.vertices:
@@ -119,6 +120,20 @@ class Graph:  # Class of graph
                 if count > 0:
                     self.edges.append((e[0], e[1], count, e[3]))
 
+    def label_terminal_vertices(self):
+        ## mark the first and the last vertices on this graph, for each chromosome
+        chr_min_max = {}
+        for v in self.vertices:
+            if v.chromosome not in chr_min_max:
+                chr_min_max[v.chromosome] = {'min': v.pos, 'max': v.pos}
+            else:
+                if v.pos < chr_min_max[v.chromosome]['min']:
+                    chr_min_max[v.chromosome]['min'] = v.pos
+                if v.pos > chr_min_max[v.chromosome]['max']:
+                    chr_min_max[v.chromosome]['max'] = v.pos
+        for v in self.vertices:
+            if v.pos == chr_min_max[v.chromosome]['min'] or v.pos == chr_min_max[v.chromosome]['max']:
+                self.terminal_vertices_ids.append(v.id)
 
 def find_bp_in_segment(chromosome, point,
                        segments):  # this function get chromosome and position as input(from sv call) and add this point to segment bp list. It helps us to then spliting segments to new one.
@@ -364,7 +379,7 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
             component_edges[i] = [e, p.LpVariable('Y' + str(i), cat=p.LpInteger),
                                   p.LpVariable('Z' + str(i), cat=p.LpInteger)]  # variable Y_i is for tuning CN of each segment if we need to change the CN. Z = absolute value of Y
             print('Y' + str(i), e)
-            # For having abselute value in ILP for we need to define variable Z as well. 
+            # For having abselute value in ILP for we need to define variable Z as well.
             Lp_prob += component_edges[i][2] >= -component_edges[i][1]  # this is used for defining abselute value
             Lp_prob += component_edges[i][2] >= component_edges[i][1]
             # the following if is a condition for setting the limit on how much the CN can be changed for segment with length less than 1Mbp it is one
@@ -591,7 +606,7 @@ def detect_segment_odd_degree(component, component_edges):  # detect vertices wi
             ans.append(i)
     return ans
 
-def detect_residue_dgree(component, component_edges):
+def detect_residue_dgree(component, component_edges, terminal_v_ids):
     ans = []
     d = {}
     for c in component:
@@ -605,7 +620,7 @@ def detect_residue_dgree(component, component_edges):
             d[e[1]] -= e[2]
     for i in d.keys():
         if d[i] > 0:
-            if i < max(component) and i > min (component):
+            if i not in terminal_v_ids:
                 ans.append((i, d[i]))
     return ans
 def scoring_paths(path_list, segment_vertices, g, centro):
@@ -634,6 +649,31 @@ def scoring_paths(path_list, segment_vertices, g, centro):
 
 
 def printEulerTour(component, component_edges, g, output_file):  # Find Eulerian path/circuts in connected components in graph g
+    def vertices_distance(v1, v2):
+        ## assumes checkes of intra-chr is done prior
+        return abs(g.vertices[v1].pos - g.vertices[v2].pos)
+
+    def group_residual_verticeds(rv):
+        ## debugging use
+        ## group RVs by Chr and HT-type, hopefully within each Chr, #H == #T
+        tally = {}
+        for v in rv:
+            v_idx = v[0]
+            v_count = v[1]
+            entry = (g.vertices[v_idx].chromosome, g.vertices[v_idx].type)
+            if entry in tally:
+                tally[entry] += v_count
+            else:
+                tally[entry] = v_count
+        ## check if HT in each Chr pairs up
+        paired_up = True
+        for entry, count in tally.items():
+            other = 'T' if entry[1] == 'H' else 'H'
+            if (entry[0], other) not in tally or tally[((entry[0], other))] != count:
+                paired_up = False
+                break
+        return paired_up, tally
+
     g2 = Graph()  # create new graph g2
     g2.edges = component_edges
     for v in component:
@@ -644,16 +684,43 @@ def printEulerTour(component, component_edges, g, output_file):  # Find Eulerian
 
     segment_vertices = detect_segment_vertices(component, component_edges)
 
-    residue_vertices = detect_residue_dgree(component, component_edges)
+    ## ZJ: heuristically connecting residual vertices with closest node (must be intra-chr, must be H-T or T-H, as they represent loss or focal amp.)
+    g2.label_terminal_vertices()
+    residue_vertices = detect_residue_dgree(component, component_edges, g2.terminal_vertices_ids)
     print('RESIDUE vertices', residue_vertices)
+    rv_paired, rv_tally = group_residual_verticeds(residue_vertices)
+    if not rv_paired:
+        print(f'RV not paired: {rv_tally}')
+    else:
+        print(f'RV paired: {rv_tally}')
     if len(residue_vertices) > 0:
-        for i in residue_vertices:
-            if i[0] % 2 == 0:
-                if (i[0]+1 , i[1]) in residue_vertices:
-                    #need to check the cn is greater than average
-                    if g.return_node(i[0]).cn > 2:
-                        print('shaqaq')#Siavash need to take care of it.
-                        g2.add_dummy_edges(i[0], i[0]+1, i[1])
+        # compute pair wise distances
+        rv_distances = []
+        for idx1, (i1, _) in enumerate(residue_vertices):
+            rv1 = g.return_node(i1)
+            for (i2, _) in residue_vertices[idx1+1:]:
+                rv2 = g.return_node(i2)
+                if rv1.chromosome == rv2.chromosome:
+                    if (rv1.type, rv2.type) == ('H', 'T') or (rv1.type, rv2.type) == ('T', 'H'):
+                        rv_distances.append((abs(rv1.pos - rv2.pos), i1, i2))
+        # heuristic pairing
+        rv_distances.sort()
+        remaining_residuals = {i[0]: i[1] for i in residue_vertices}
+        for d in rv_distances:
+            edge_available_residuals = min(remaining_residuals[d[1]], remaining_residuals[d[2]])
+            if edge_available_residuals:
+                g2.add_dummy_edges(d[1], d[2], edge_available_residuals)
+                remaining_residuals[d[1]] -= edge_available_residuals
+                remaining_residuals[d[2]] -= edge_available_residuals
+
+        # for i in residue_vertices:
+        #     if i[0] % 2 == 0:
+        #         if (i[0]+1 , i[1]) in residue_vertices:
+        #             #need to check the cn is greater than average
+        #             if g.return_node(i[0]).cn > 2:
+        #                 print('shaqaq')#Siavash need to take care of it.
+        #                 g2.add_dummy_edges(i[0], i[0]+1, i[1])
+
     odd_vertices = detect_segment_odd_degree(component, component_edges)
     print('ODD vertices', odd_vertices)
     # for i in range(0,len(segment_vertices), 2):
