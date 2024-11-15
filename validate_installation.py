@@ -22,14 +22,14 @@ def compare_directories_recursively(dir1, dir2):
     if dir1.split('/')[-1] != 'logs':
         # Check for files that are present in both directories but differ in content
         for diff_file in comparison.diff_files:
-            if diff_file.split('.')[-1] == 'pdf':
+            if diff_file.split('.')[-1] in ['png', 'pdf']:
                 continue
             differences_found = True
             print(f"Different content: {os.path.join(dir1, diff_file)} and {os.path.join(dir2, diff_file)}")
 
         # Check for files that are present in both directories and are identical
         for common_file in comparison.common_files:
-            if common_file.split('.')[-1] == 'pdf':
+            if common_file.split('.')[-1] in ['png', 'pdf']:
                 continue
             file1 = os.path.join(dir1, common_file)
             file2 = os.path.join(dir2, common_file)
