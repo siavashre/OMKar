@@ -196,7 +196,7 @@ In `OMKar_report/`:
     - Open in a browser, this gives the HTML report for a particular sample. This report is separated by chromosome clusters. Each cluster includes the ISCN SV list, predicted disrupted DDG2P genes, Molecular Karyotype output, tabulated BED file of the SV calls not incorporated, and a visualization of the chromosome cluster.
 
 ### License
-MIT License.
+BSD-3-Clause license.
 
 ### Contact
 For issues, questions, or contributions, visit [GitHub Issues](https://github.com/siavashre/OMKar/issues) or contact the maintainers directly.
