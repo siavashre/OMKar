@@ -18,6 +18,7 @@ from bionano_metadata import *
 import pandas as pd
 import csv
 from KarReporter.KarUtils.read_OMKar_output import *
+from pathlib import Path
 rcParams['pdf.fonttype'] = 42
 
 
@@ -1884,12 +1885,14 @@ def main():
         generate_image = not args.noImage
         sys.stdout = open(f"{args.output}/logs/__report.stdout.txt", 'w')
         os.makedirs(f'{args.output}/omkar_report/', exist_ok=True)
+        omkar_input_dir_for_report = args.dir if not args.single else str(Path(args.dir).parent)
         generate_html_report(generate_image,
                              None,
                              '',
                              f'{args.output}/omkar_output/',
                              f'{args.output}/omkar_report/clustered_karyotype_images/',
                              f'{args.output}/omkar_report/',
+                             omkar_input_dir_for_report,
                              debug=args.reportDebug)
         sys.stdout.close()
         sys.stdout = default_stdout

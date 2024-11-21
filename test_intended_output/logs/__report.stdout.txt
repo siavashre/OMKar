@@ -1,10 +1,11 @@
 test_input/test_input.txt
 event<0>,type<balanced_translocation_unassociated>,blocks<['4.1a.mt(8-).47+.7-', '5.1.wt(8+).7+.9+']>
-event<1>,type<inversion>,blocks<['43.1,2.(77+,78+),wt(77+,78+),mt(78-).76+.79+']>
-event<2>,type<tandem_duplication>,blocks<['31.1.mt(53+).52+.53+']>
-event<3>,type<deletion>,blocks<['25.1.wt(38+).37+.39+']>
-event<4>,type<deletion>,blocks<['33.1.wt(60+).59+.61+']>
+event<1>,type<tandem_duplication>,blocks<['31.1.mt(53+).52+.53+']>
+event<2>,type<deletion>,blocks<['25.1.wt(38+).37+.39+']>
+event<3>,type<deletion>,blocks<['33.1.wt(60+).59+.61+']>
+event<4>,type<deletion>,blocks<['43.1.wt(77+,78+).76+.78-']>
 event<5>,type<insertion>,blocks<['4.1b.mt(7-).8-.48+']>
+event<6>,type<insertion>,blocks<['43.2.mt(78-).76+.79+']>
 ([4, 5], [25], [31], [33], [43])
-{'deletion': 2, 'inversion': 1, 'nonreciprocal translocation': 1, 'tandem duplication': 1}
+{'deletion': 3, 'duplicated_insertion': 2, 'nonreciprocal_translocation': 1, 'tandem_duplication': 1}
 HTML file generated
