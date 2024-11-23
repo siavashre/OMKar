@@ -9,7 +9,7 @@ $(document).ready( function () {
     });
 
     $('.gene_report').DataTable({
-      searching: false,
+      searching: true,
       pageLength: 10,
       lengthChange: false
     })
