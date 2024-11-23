@@ -136,6 +136,27 @@ class Graph:  # Class of graph
             if v.pos == chr_min_max[v.chromosome]['min'] or v.pos == chr_min_max[v.chromosome]['max']:
                 self.terminal_vertices_ids.append(v.id)
 
+    # def previous_vertex_of_same_chrom(self, current_v):
+    #     current_v_idx = self.vertices.index(current_v)
+    #     if current_v_idx == 0:
+    #         return None
+    #     previous_v = self.vertices[current_v_idx - 1]
+    #     if previous_v.chromosome == v.chromosome:
+    #         return previous_v
+    #     else:
+    #         return None
+    #
+    # def next_vertex_of_same_chrom(self, current_v):
+    #     current_v_idx = self.vertices.index(current_v)
+    #     if current_v_idx == len(self.vertices) - 1:
+    #         return None
+    #     next_v = self.vertices[current_v_idx + 1]
+    #     if previous_v.chromosome == v.chromosome:
+    #         return previous_v
+    #     else:
+    #         return None
+
+
 def find_bp_in_segment(chromosome, point,
                        segments):  # this function get chromosome and position as input(from sv call) and add this point to segment bp list. It helps us to then spliting segments to new one.
     for i in segments:
@@ -675,6 +696,21 @@ def printEulerTour(component, component_edges, g, output_file):  # Find Eulerian
                 break
         return paired_up, tally
 
+    def segment_edge_is_amplified(v1, v2):
+        for e in component_edges:
+            if (e[0] == v1 and e[1] == v2) or (e[1] == v1 and e[0] == v2):
+                if e[3] == 'S':
+                    if e[2] > 2:
+                        return True
+        return False
+
+    def self_edge_multiplicity(v1):
+        for e in component_edges:
+            if e[0] == v1 and e[1] == v1:
+                if e[3] == 'SV':
+                    if e[2] > 0:
+                        return e[2]
+
     g2 = Graph()  # create new graph g2
     g2.edges = component_edges
     for v in component:
@@ -694,8 +730,51 @@ def printEulerTour(component, component_edges, g, output_file):  # Find Eulerian
         print(f'RV not paired: {rv_tally}')
     else:
         print(f'RV paired: {rv_tally}')
+
+    ## resolve potential self-edge first
+    ## only add self-edge if: CN-amp is connecting to another self-edge
+    residue_vertices = detect_residue_dgree(component, component_edges, g2.terminal_vertices_ids)
+    print('RESIDUE vertices (before self-edge): ', residue_vertices)
+    # H node means the other self-edge must be after, T node means its before
+    for i1, i1_residual in residue_vertices:
+        if i1_residual <= 1:
+            continue
+        rv1 = g.return_node(i1)
+        other_foldback_found = 0
+        if rv1.type == 'H':
+            # extend while section has CN gain
+            i_i, i_j = i1, i1+1
+            while True:
+                v_i, v_j = g.return_node(i_i), g.return_node(i_j)
+                if v_i is None or v_j is None:
+                    break
+                if not segment_edge_is_amplified(i_i, i_j):
+                    break
+                foundback_multiplicity = self_edge_multiplicity(i_j)
+                if foundback_multiplicity:
+                    other_foldback_found = foundback_multiplicity
+                    break
+                i_i, i_j = i_i+2, i_j+2
+        else:  # 'T'
+            i_i, i_j = i1-1, i1
+            while True:
+                v_i, v_j = g.return_node(i_i), g.return_node(i_j)
+                if v_i is None or v_j is None:
+                    break
+                if not segment_edge_is_amplified(i_i, i_j):
+                    break
+                foundback_multiplicity = self_edge_multiplicity(i_i)
+                if foundback_multiplicity:
+                    other_foldback_found = foundback_multiplicity
+                    break
+                i_i, i_j = i_i-2, i_j-2
+        if other_foldback_found:
+            g2.add_dummy_edges(i1, i1, other_foldback_found)
+
+    residue_vertices = detect_residue_dgree(component, component_edges, g2.terminal_vertices_ids)
+    print('RESIDUE vertices (after self-edge): ', residue_vertices)
     if len(residue_vertices) > 0:
-        # compute pair wise distances
+        # compute pair wise distances for all pairs
         rv_distances = []
         for idx1, (i1, _) in enumerate(residue_vertices):
             rv1 = g.return_node(i1)
@@ -713,14 +792,6 @@ def printEulerTour(component, component_edges, g, output_file):  # Find Eulerian
                 g2.add_dummy_edges(d[1], d[2], edge_available_residuals)
                 remaining_residuals[d[1]] -= edge_available_residuals
                 remaining_residuals[d[2]] -= edge_available_residuals
-
-        # for i in residue_vertices:
-        #     if i[0] % 2 == 0:
-        #         if (i[0]+1 , i[1]) in residue_vertices:
-        #             #need to check the cn is greater than average
-        #             if g.return_node(i[0]).cn > 2:
-        #                 print('shaqaq')#Siavash need to take care of it.
-        #                 g2.add_dummy_edges(i[0], i[0]+1, i[1])
 
     odd_vertices = detect_segment_odd_degree(component, component_edges)
     print('ODD vertices', odd_vertices)
@@ -1790,7 +1861,7 @@ def run_omkar(cnv_path, smap_path, rcmap_path, xmap_path, centro_path, name, out
         write_MK_file(post_process_output, processed_path_list, segment_obj_to_idx_dict)
     else:
         ## if validation failed, keep original omkar output
-        print(f"output format validation failed, the report may include un-intended calls; file: {post_process_output}", file=sys.stderr)
+        print(f"OMKar output format validation failed, the interpretation may include un-intended calls; check log for detailed reason; file: {post_process_output}", file=sys.stderr)
         shutil.copy2(post_process_input, post_process_output)
 
 def find_input_file_paths(dir):
@@ -1865,6 +1936,7 @@ def main():
     if args.single:
         filepaths = find_input_file_paths(args.dir)
         sample_name = os.path.basename(os.path.normpath(args.dir))
+        print(f'running sample: {sample_name}')
         sys.stdout = open(f"{args.output}/logs/{sample_name}.stdout.txt", 'w')
         sample_output_dir = f"{args.output}/omkar_output/"
         run_omkar(filepaths['cnv'], filepaths['smap'], filepaths['rcmap'], filepaths['xmap'], args.centro, sample_name, sample_output_dir)
@@ -1874,6 +1946,7 @@ def main():
         for sample_dir in os.listdir(args.dir):
             filepaths = find_input_file_paths(f"{args.dir}/{sample_dir}/")
             sample_name = sample_dir
+            print(f'running sample: {sample_name}')
             sys.stdout = open(f"{args.output}/logs/{sample_name}.stdout.txt", 'w')
             sample_output_dir = f"{args.output}/omkar_output/"
             run_omkar(filepaths['cnv'], filepaths['smap'], filepaths['rcmap'], filepaths['xmap'], args.centro, sample_name, sample_output_dir)
