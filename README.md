@@ -62,11 +62,7 @@ You can run the following command to see the outputs of OMKar for the test case 
 Chr2 and Chr14, and duplication in Chr2:
 
 ```shell
-python3 main.py \
-  -dir test_input/ \
-  -o test_output/ \
-  -single \
-  -report
+python3 main.py -dir test_input/ -o test_output/ -single -report
 ```
 
 A validation code is also provided to compare the output against the intended output:
