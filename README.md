@@ -16,7 +16,7 @@ OMKar is a computational tool for automated karyotyping that utilizes Structural
 ---
 ### Requirements
 All dependencies are Python-based for ease of installation.
-  - Python 3.6 or later.
+  - Python 3.7.3 or later.
   - `numpy` >=1.25.0
   - `matplotlib` >=3.8.0
   - `pandas` >=2.1.0
