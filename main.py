@@ -1929,30 +1929,36 @@ def main():
     parser.add_argument("-report", "--report", help="flag to generate html report", action='store_true')
     parser.add_argument("-noImage", "--noImage", help="flag to disable image generation", action='store_true')
     parser.add_argument("-reportDebug", "--reportDebug", help="generate report debug in html report", action='store_true')
+    parser.add_argument("-reportOnly", "--reportOnly", help="skip running the main OMKar", action='store_true')
     args = parser.parse_args()
 
     os.makedirs(f'{args.output}/omkar_output/', exist_ok=True)
     os.makedirs(f'{args.output}/logs/', exist_ok=True)
-    if args.single:
-        filepaths = find_input_file_paths(args.dir)
-        sample_name = os.path.basename(os.path.normpath(args.dir))
-        print(f'running sample: {sample_name}')
-        sys.stdout = open(f"{args.output}/logs/{sample_name}.stdout.txt", 'w')
-        sample_output_dir = f"{args.output}/omkar_output/"
-        run_omkar(filepaths['cnv'], filepaths['smap'], filepaths['rcmap'], filepaths['xmap'], args.centro, sample_name, sample_output_dir)
-        sys.stdout.close()
-        sys.stdout = default_stdout
-    else:
-        for sample_dir in os.listdir(args.dir):
-            filepaths = find_input_file_paths(f"{args.dir}/{sample_dir}/")
-            sample_name = sample_dir
+    if not args.reportOnly:
+        if args.single:
+            filepaths = find_input_file_paths(args.dir)
+            sample_name = os.path.basename(os.path.normpath(args.dir))
             print(f'running sample: {sample_name}')
             sys.stdout = open(f"{args.output}/logs/{sample_name}.stdout.txt", 'w')
             sample_output_dir = f"{args.output}/omkar_output/"
             run_omkar(filepaths['cnv'], filepaths['smap'], filepaths['rcmap'], filepaths['xmap'], args.centro, sample_name, sample_output_dir)
             sys.stdout.close()
             sys.stdout = default_stdout
+        else:
+            for sample_dir in os.listdir(args.dir):
+                if sample_dir == '.DS_Store':
+                    continue
+                filepaths = find_input_file_paths(f"{args.dir}/{sample_dir}/")
+                sample_name = sample_dir
+                print(f'running sample: {sample_name}')
+                sys.stdout = open(f"{args.output}/logs/{sample_name}.stdout.txt", 'w')
+                sample_output_dir = f"{args.output}/omkar_output/"
+                run_omkar(filepaths['cnv'], filepaths['smap'], filepaths['rcmap'], filepaths['xmap'], args.centro, sample_name, sample_output_dir)
+                sys.stdout.close()
+                sys.stdout = default_stdout
 
+    if args.reportOnly and os.path.exists(f'{args.output}/omkar_report/'):
+        shutil.rmtree(f'{args.output}/omkar_report/')
     if args.report:
         from KarReporter import generate_html_report
         generate_image = not args.noImage
