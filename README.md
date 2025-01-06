@@ -25,19 +25,8 @@ All dependencies are Python-based for ease of installation.
   - `argparse` >=1.4.0
   - `jinja2` >= 3.1.4
 
-Full list of dependencies and version are prepared in `dependencies.txt`. 
-Installation of all dependencies can be done by
-
-```shell
-pip install -r dependencies.txt
-```
-
-*When running for the first time, it may take about a minute for matplotlib to adjust to the font environment.*
-
-You can also create a python virtual environment for running OMKar. This may help
-with cleaner dependency installation. `python -m venv omkar_env` to create the environment.
-`source omkar_env/bin/activate` to launch the environment. Then, run the installation script 
-`pip install -r dependencies.txt`. To deactivate, run `deactivate`.
+We have prepared a dependency file that list all packages and versions.
+A convenient installation guide is included in the next section.
 
 ### Installation
 **Clone OMKar from GitHub and navigate to the working directory:**
@@ -46,7 +35,8 @@ git clone --recurse-submodules https://github.com/siavashre/OMKar.git
 ```
 *The submodules are needed for generating the HTML reports.*
 
-If download speed is limited, you may add `--depth 1` and `--shallow-submodules` to prevents files removed in previous versions from being downloaded (they are for development use only).
+If download speed is limited, you may add `--depth 1` and/or
+`--shallow-submodules` to prevents files removed in previous versions from being downloaded (they are for development use only).
 
 
 **Update OMKar from GitHub (if a previous clone exists):**
@@ -55,6 +45,23 @@ git pull
 git submodule update --init --recursive
 ```
 
+**Set up dependencies:**
+
+You may optionally create a python virtual environment for running OMKar. This may help
+with cleaner dependency installation. `python -m venv omkar_env` to create the environment.
+`source omkar_env/bin/activate` to launch the environment. To deactivate, run `deactivate`.
+
+Full list of dependencies and version are prepared in `dependencies.txt`. 
+Installation of all dependencies can be done by running the following command.
+If a python virtual environment is used, first activate the environment, then
+run this command:
+
+```shell
+pip install -r dependencies.txt
+```
+
+**Validate environment:**
+
 To test if installation was correct, we included test files in the `test_files` directory. 
 You can run the following command to see the outputs of OMKar for the test case which contains Balanced translocation between
 Chr2 and Chr14, and duplication in Chr2:
@@ -62,6 +69,8 @@ Chr2 and Chr14, and duplication in Chr2:
 ```shell
 python3 main.py -dir test_input/ -o test_output/ -single -report
 ```
+
+*When running for the first time, it may take about a minute for matplotlib to adjust to the font environment.*
 
 A validation code is also provided to compare the output against the intended output:
 
