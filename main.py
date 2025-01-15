@@ -1,161 +1,17 @@
-from collections import defaultdict
-import os
 import sys
 import shutil
 from parsers import *
-import numpy as np
-from scipy import interpolate
-import matplotlib.pyplot as plt
-from matplotlib.patches import ConnectionPatch
 import pulp as p
 import argparse
-import itertools
 from copy import deepcopy
-import math
 from matplotlib import rcParams
-from utill import *
-from bionano_metadata import *
-import pandas as pd
 import csv
+from scripts.utill import *
 from KarReporter.KarUtils.read_OMKar_output import *
 from pathlib import Path
 rcParams['pdf.fonttype'] = 42
-
-
-class Vertices:  # Class of vertices in out graph
-    def __init__(self):
-        self.type = ''  # Type of vertices it can be Head or Tail
-        self.id = 0  # Id of vertices
-        self.chromosome = 0  # which chromosome this vertices belong chrX = 23 and chrY = 24
-        self.pos = 0  # in terms of bp the position of this vertices
-        self.cn = 0  # integer CN of segment this vertices represent
-        self.edges = []  # its like adjacenty matrix it contains all adjacent vertices
-
-    def append_edges(self, i):  # add new vertices to adjancty list
-        self.edges.append(i)
-        self.edges = list(set(self.edges))
-
-    def remove_edges(self, i):  # remove vertices from adjacenty list
-        if i in self.edges:
-            self.edges.remove(i)
-        else:
-            print('Not here baba')
-
-    def print_v(self):  # print vertices info
-        print(self.id, self.chromosome, self.pos, self.cn, self.type, self.edges)
-
-
-class Graph:  # Class of graph
-    def __init__(self):
-        self.vertices = []  # list of Object of vertices
-        self.edges = []  # list of edges. each edges is tuple of (u,v,M,type) u and v are vertices connected to each other M represent edge multiplicities and type can be "S", "SV", "R", "D"
-        self.terminal_vertices_ids = []  # subset of vertices that begin/end a chromosome
-
-    def print_node(self):  # print all nodes
-        for v in self.vertices:
-            print(v.id, v.chromosome, v.pos, v.cn, v.type, v.edges)
-
-    def output_node(self, out_file):
-        out_str = ""
-        for v in self.vertices:
-            out_str += "{}\t{}\t{}\t{}\t{}\t{}\n".format(v.id, v.chromosome, v.pos, v.cn, v.type, v.edges)
-        with open(out_file, 'w') as fp_write:
-            fp_write.write(out_str)
-
-    def output_edges(self, out_file):
-        out_str = ""
-        for e in self.edges:
-            out_str += str(e) + '\n'
-        with open(out_file, 'w') as fp_write:
-            fp_write.write(out_str)
-
-    def return_node(self, id):  # return node by id
-        for v in self.vertices:
-            if id == v.id:
-                return v
-        return None
-
-    def return_edges(self, a, b):  # return all type of edge between two nodes. it return a list of edges or None
-        ans = []
-        for e in self.edges:
-            if (a == e[0] and b == e[1]) or (a == e[1] and b == e[0]):
-                ans.append(e)
-        if len(ans) > 0:
-            return ans
-        return None
-
-    def add_dummy_edges(self, u, v, cnn):  # add dummy edges with type "D" between two nodes if already edge exist between them increase the CN
-        e = self.return_edges(u, v)
-        if max(u, v) % 2 == 1 and abs(u - v) == 1:
-            if len(e) == 1:
-                # if e[0][2] == 2:
-                #      e = e[0]
-                #      cn = e[2] - 1
-                #      self.edges.remove(e)
-                #      self.edges.append((e[0], e[1], cn, e[3]))
-                # else:
-                self.edges.append((u, v, cnn, 'D'))
-                self.return_node(u).append_edges(v)
-                self.return_node(v).append_edges(u)
-        elif e == None:
-            self.edges.append((u, v, cnn, 'D'))
-            self.return_node(u).append_edges(v)
-            self.return_node(v).append_edges(u)
-        else:
-            if len(e) == 1:
-                e = e[0]
-                cn = e[2] + cnn
-                self.edges.remove(e)
-                self.edges.append((e[0], e[1], cn, e[3]))
-            else:
-                e = e[0]
-                cn = e[2] + cnn
-                self.edges.remove(e)
-                self.edges.append((e[0], e[1], cn, e[3]))
-
-    def update_edges(self, a, b, count, e_type):  # update an edge between node a nad b with type = e_type to the new number
-        e_list = self.return_edges(a, b)
-        for e in e_list:
-            if e[3] == e_type:
-                self.edges.remove(e)
-                if count > 0:
-                    self.edges.append((e[0], e[1], count, e[3]))
-
-    def label_terminal_vertices(self):
-        ## mark the first and the last vertices on this graph, for each chromosome
-        chr_min_max = {}
-        for v in self.vertices:
-            if v.chromosome not in chr_min_max:
-                chr_min_max[v.chromosome] = {'min': v.pos, 'max': v.pos}
-            else:
-                if v.pos < chr_min_max[v.chromosome]['min']:
-                    chr_min_max[v.chromosome]['min'] = v.pos
-                if v.pos > chr_min_max[v.chromosome]['max']:
-                    chr_min_max[v.chromosome]['max'] = v.pos
-        for v in self.vertices:
-            if v.pos == chr_min_max[v.chromosome]['min'] or v.pos == chr_min_max[v.chromosome]['max']:
-                self.terminal_vertices_ids.append(v.id)
-
-    # def previous_vertex_of_same_chrom(self, current_v):
-    #     current_v_idx = self.vertices.index(current_v)
-    #     if current_v_idx == 0:
-    #         return None
-    #     previous_v = self.vertices[current_v_idx - 1]
-    #     if previous_v.chromosome == v.chromosome:
-    #         return previous_v
-    #     else:
-    #         return None
-    #
-    # def next_vertex_of_same_chrom(self, current_v):
-    #     current_v_idx = self.vertices.index(current_v)
-    #     if current_v_idx == len(self.vertices) - 1:
-    #         return None
-    #     next_v = self.vertices[current_v_idx + 1]
-    #     if previous_v.chromosome == v.chromosome:
-    #         return previous_v
-    #     else:
-    #         return None
-
+from scripts.objects import Vertices, Graph
+from scripts.visualization import Plot_graph
 
 def find_bp_in_segment(chromosome, point,
                        segments):  # this function get chromosome and position as input(from sv call) and add this point to segment bp list. It helps us to then spliting segments to new one.
@@ -163,37 +19,6 @@ def find_bp_in_segment(chromosome, point,
         if str(i.chromosome) == str(chromosome):
             if i.start <= point <= i.end:
                 i.bp.append(point)
-
-
-def merge_list(l):  # this function merge all breakpoints in a segment within a window of 50Kbp
-    l = list(set(l))
-    l = sorted(l)
-    if len(l) == 2:
-        return l
-    WINDOW = 50000
-    ans = []
-    prev = None
-    group = []
-    for item in l[1:-1]:
-        if prev is None or abs(item - prev) <= WINDOW:
-            group.append(item)
-        else:
-            ans.append(np.mean(group))
-            group = [item]
-        prev = item
-    if len(group) > 0:
-        ans.append(np.mean(group))
-    return [l[0]] + ans + [l[-1]]
-
-
-def rev_dir(a):
-    if a == 'H':
-        return 'T'
-    return 'H'
-
-
-
-
 
 def find_start_end(prev_point, start, label_list):
     ans = []
@@ -236,94 +61,6 @@ def detect_overlap_map(chromosome, pos, xmap):  # this function detect if there 
         return True
     return False
 
-def Plot_graph(g, file, name):  # this function plot the graph
-    vertices = g.vertices
-    fig = plt.figure(figsize=(20, 25))
-    plt.title(name)
-    # fig.suptitle(args.name, fontsize=48)
-    rows = 6
-    column = 4
-    grid = plt.GridSpec(rows, column, wspace=.25, hspace=.25)
-    axes = []
-    for i in range(24):
-        exec(f"plt.subplot(grid{[i]})")
-        axes.append(plt.gca())
-        if centro != None:
-            plt.axvline(min(centro['chr' + str(i + 1)]), color='green')
-            plt.axvline(max(centro['chr' + str(i + 1)]), color='green')
-        max_m = 0
-        for v in vertices:
-            if int(v.chromosome) == i + 1:
-                plt.plot(int(v.pos), int(v.cn), marker="o", markersize=2, color="green", alpha=0.7)
-                if v.cn > max_m:
-                    max_m = v.cn
-        for e in g.edges:
-            # print(e[0])
-            node1 = g.return_node(e[0])
-            node2 = g.return_node(e[1])
-            if int(node1.chromosome) == i + 1 and int(node2.chromosome) == i + 1 and e[3] == 'S':
-                plt.plot([node1.pos, node2.pos], [node1.cn, node2.cn], markersize=0.5, color="red", alpha=0.3)
-            elif int(node1.chromosome) == i + 1 and int(node2.chromosome) == i + 1 and e[3] == 'R':
-                plt.plot([node1.pos, node2.pos], [node1.cn, node2.cn], markersize=0.5, color="blue", alpha=0.3)
-            elif int(node1.chromosome) == i + 1 and int(node2.chromosome) == i + 1 and e[
-                3] == 'SV' and node1.pos != node2.pos:
-                x = [node1.pos, (node1.pos + node2.pos) / 2, node2.pos]
-                y = [node1.cn, max(node1.cn, node2.cn) + 1, node2.cn]
-                if node2.pos < node1.pos:
-                    x = [node2.pos, (node1.pos + node2.pos) / 2, node1.pos]
-                    y = [node2.cn, max(node1.cn, node2.cn) + 1, node1.cn]
-                # print(x)
-                x2 = np.linspace(x[0], x[-1], 100)
-                y2 = interpolate.pchip_interpolate(x, y, x2)
-                plt.plot(x2, y2, markersize=0.5, color="black", alpha=0.3)
-        plt.title('chr' + str(i + 1))
-        plt.ylim([-0.5, max_m + 3])
-    for e in g.edges:
-        node1 = g.return_node(e[0])
-        node2 = g.return_node(e[1])
-        if int(node1.chromosome) != int(node2.chromosome) and e[3] == 'SV':
-            xy1 = (node1.pos, node1.cn)
-            xy2 = (node2.pos, node2.cn)
-            con1 = ConnectionPatch(xyA=xy2, xyB=xy1, coordsA="data", coordsB="data",
-                                   axesA=axes[int(node2.chromosome) - 1], axesB=axes[int(node1.chromosome) - 1],
-                                   color="black", alpha=0.6)
-            axes[int(node2.chromosome) - 1].add_artist(con1)
-    i = -0.5
-    j = -0.5
-    prev = 0
-    for e in g.edges:
-        node1 = g.return_node(e[0])
-        node2 = g.return_node(e[1])
-        if int(node1.chromosome) != int(node2.chromosome) and e[3] == 'SV':
-            if int(node1.chromosome) != prev:
-                prev = int(node1.chromosome)
-                i = 0
-            else:
-                i = i + 0.5
-            exec(f"plt.subplot(grid{[int(node1.chromosome) - 1]})")
-            xy1 = (node1.pos, node1.cn)
-            xy2 = (node2.pos, node2.cn)
-            if node1.type == 'H' and node2.type == 'H':
-                plt.annotate('(_,+)', xy=(node1.pos, node1.cn + 0.5 + i))
-            elif node1.type == 'H' and node2.type == 'T':
-                plt.annotate('(_,_)', xy=(node1.pos, node1.cn + 0.5 + i))
-            elif node1.type == 'T' and node2.type == 'T':
-                plt.annotate('(+,_)', xy=(node1.pos, node1.cn + 0.5 + i))
-            elif node1.type == 'T' and node2.type == 'H':
-                plt.annotate('(+,+)', xy=(node1.pos, node1.cn + 0.5 + i))
-            exec(f"plt.subplot(grid{[int(node2.chromosome) - 1]})")
-            j += 0.5
-            if node1.type == 'H' and node2.type == 'H':
-                plt.annotate('(_,+)', xy=(node2.pos, node2.cn + 0.5 + j))
-            elif node1.type == 'H' and node2.type == 'T':
-                plt.annotate('(_,_)', xy=(node2.pos, node2.cn + 0.5 + j))
-            elif node1.type == 'T' and node2.type == 'T':
-                plt.annotate('(+,_)', xy=(node2.pos, node2.cn + 0.5 + j))
-            elif node1.type == 'T' and node2.type == 'H':
-                plt.annotate('(+,+)', xy=(node2.pos, node2.cn + 0.5 + j))
-    plt.savefig(file, dpi=200)
-
-
 
 def dfs(i, temp, g, visited):  # run dfs alg on graph g on vertices i. visited is a list of seen vertices before visiting this node.
     visited.append(i)
@@ -359,12 +96,6 @@ def find_connected_components(g):  # find connected components in a graph g
                 cc.append(a)
     return cc
 
-
-
-
-def calculate_seg_length(e, g):  # calculate segment length of segment edge e
-    l = abs(g.return_node(e[0]).pos - g.return_node(e[1]).pos)
-    return l, 1 + math.ceil(l / 5000000)
 
 
 def estimating_edge_multiplicities_in_CC(component, g, xmap):
@@ -1754,13 +1485,13 @@ def run_omkar(cnv_path, smap_path, rcmap_path, xmap_path, centro_path, name, out
     print('Siavash')
     print(g.edges)
     g.output_edges(f"{output_path}/{name}/{name}.preILP_edges.txt")
-    Plot_graph(g, file, name)
+    Plot_graph(g, file, name, centro)
     connected_components = find_connected_components(g)
     for component in connected_components:
         # if 102 in component:
         component_edges = estimating_edge_multiplicities_in_CC(component, g, xmap)
     connected_components = find_connected_components(g)
-    Plot_graph(g, file2, name)
+    Plot_graph(g, file2, name, centro)
     paths = []
     edges_with_dummy = []
 

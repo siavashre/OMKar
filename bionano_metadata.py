@@ -1,5 +1,5 @@
 import pandas as pd
-from utill import *
+from scripts.utill import *
 def map_cyto_coords(coords, cytoband_filtered, orientation):
     """
     Map cytogenetic coordinates based on the provided cytoband data.

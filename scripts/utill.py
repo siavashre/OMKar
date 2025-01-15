@@ -31,18 +31,33 @@ def detect_sv_directions(sv, xmap):  # this function detect the direction of one
         elif dir1 == 'H' and dir2 == 'T':
             return 'T', 'H'
     return dir1, dir2
-    # dir1_a = dir1
-    # dir2_a = dir2
-    # dir1_b = dir1
-    # dir2_b = dir2
-    # if swap == 1:
-    #     dir1_a, dir2_a = dir2, dir1
-    # if int(alignment1['RefContigID']) > int(alignment2['RefContigID']) or (int(alignment1['RefContigID']) == int(alignment2['RefContigID'])
-    #      and alignment1['RefStartPos']> alignment2['RefStartPos']):
-    #     dir1_b, dir2_b = dir2, dir1
-    # if dir1_a !=dir1_b:
-    #     print('Here we had BUG BUG BUG',sv)
-    # return dir1_b, dir2_b
+
+def merge_list(l):  # this function merge all breakpoints in a segment within a window of 50Kbp
+    l = list(set(l))
+    l = sorted(l)
+    if len(l) == 2:
+        return l
+    WINDOW = 50000
+    ans = []
+    prev = None
+    group = []
+    for item in l[1:-1]:
+        if prev is None or abs(item - prev) <= WINDOW:
+            group.append(item)
+        else:
+            ans.append(np.mean(group))
+            group = [item]
+        prev = item
+    if len(group) > 0:
+        ans.append(np.mean(group))
+    return [l[0]] + ans + [l[-1]]
+
+
+def rev_dir(a):
+    if a == 'H':
+        return 'T'
+    return 'H'
+
 
 
 def find_nodes(chromosome, pos, vertices, node_type):  # find the closest node and return it id to the chromosome and position and type
@@ -114,6 +129,10 @@ def return_all_edges_in_cc(c, g):  # this function return all edges in graph g w
                 component_edges.append(e)
     return component_edges
 
+
+def calculate_seg_length(e, g):  # calculate segment length of segment edge e
+    l = abs(g.return_node(e[0]).pos - g.return_node(e[1]).pos)
+    return l, 1 + math.ceil(l / 5000000)
 
 ##########################ZHAOYANG#################
 import numpy as np

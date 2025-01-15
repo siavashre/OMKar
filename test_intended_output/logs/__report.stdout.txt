@@ -8,4 +8,3 @@ event<5>,type<insertion>,blocks<['4.1b.mt(7-).8-.48+']>
 event<6>,type<insertion>,blocks<['43.2.mt(78-).76+.79+']>
 ([4, 5], [25], [31], [33], [43])
 {'deletion': 3, 'duplicated_insertion': 2, 'nonreciprocal_translocation': 1, 'tandem_duplication': 1}
-HTML file generated
