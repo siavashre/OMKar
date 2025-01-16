@@ -1,4 +1,3 @@
-import itertools
 import math
 ######################### DOUBLE CHECK THIS FUNCTION ######################################
 def detect_sv_directions(sv, xmap):  # this function detect the direction of one smap like H/T to H/T. #need to be check Contain bug?
@@ -113,26 +112,91 @@ def detect_segment_vertices(component,
             v.add(e[1])
     return sorted(list(set(component) - v))
 
-def return_all_edges_in_cc(c, g):  # this function return all edges in graph g which is in connectec components C
-    # c is a list of all vertices id in this connected component
-    component_edges = []
-    paired = itertools.combinations(c, 2)  # all combination two of these vertices will check if the edges exist or not
-    for p in paired:
-        e_list = g.return_edges(p[0], p[1])
-        if e_list != None:
-            for e in e_list:
-                component_edges.append(e)
-    for i in c:
-        e_list = g.return_edges(i, i)
-        if e_list != None:
-            for e in e_list:
-                component_edges.append(e)
-    return component_edges
-
 
 def calculate_seg_length(e, g):  # calculate segment length of segment edge e
     l = abs(g.return_node(e[0]).pos - g.return_node(e[1]).pos)
     return l, 1 + math.ceil(l / 5000000)
+
+def find_bp_in_segment(chromosome, point,
+                       segments):  # this function get chromosome and position as input(from sv call) and add this point to segment bp list. It helps us to then spliting segments to new one.
+    for i in segments:
+        if str(i.chromosome) == str(chromosome):
+            if i.start <= point <= i.end:
+                i.bp.append(point)
+
+def find_start_end(prev_point, start, label_list):
+    ans = []
+    for i in label_list:
+        if prev_point <= i < start:
+            ans.append(i)
+    if len(ans) < 2:
+        return 0, 0
+    else:
+        return min(min(ans)+1, prev_point+1), start-1
+
+def check_contains_masked_region(l_m, start, end):
+    contains = False
+    border_start = False
+    border_end = False
+    for i in l_m:
+        if i[0] - 0 <= start < i[1] + 0:
+            border_start = True
+            contains = True
+        if i[0] - 0 <= end <= i[1] + 0:
+            border_end = True
+            contains = True
+        if start <= i[0] and end >= i[1]:
+            contains = True
+    return contains, border_start, border_end
+
+def detect_overlap_map(chromosome, pos, xmap):  # this function detect if there is a map(alignment that overlap this region)
+    # maybe it is good idea instead of 1bp assume a window here.
+    min_x = float(pos) - 20000
+    max_x = float(pos) + 20000
+    min_seen = 1000000000
+    max_seen = 0
+    for xmapid in xmap.keys():
+        x = xmap[xmapid]
+        if int(chromosome) == int(x['RefContigID']):
+            if min_seen > x['RefStartPos']:
+                min_seen = x['RefStartPos']
+            if max_seen < x['RefEndPos']:
+                max_seen = x['RefEndPos']
+            if x['RefStartPos'] <= min_x <= x['RefEndPos'] and x['RefStartPos'] <= max_x <= x['RefEndPos']:
+                return True
+    if min_seen <= float(pos):
+        return True
+    if max_seen >= float(pos):
+        return True
+    return False
+
+def average_values_greater_than_a(input_dict, a):
+    total = 0
+    count = 0
+    for key, value in input_dict.items():
+        if key > a:
+            total += value
+            count += 1
+    return total / count if count > 0 else None
+
+
+def cn_in_mask_N_region(chromosome, start, end, cop, centro):
+    if chromosome not in ['22', '21', '15', '14', '13']:  # Andy shared this chromosome with me that Bionano CNV call in P arm is not reliable
+        # return 2
+        return round(np.average(list(cop.values()))) #instead of assumption that it is always diploid return the average cn of that chromosome
+    else:
+        if chromosome == '22' and start < max(centro['chr22']) and end < max(centro['chr22']):
+            return round(average_values_greater_than_a(cop, max(centro['chr22'])))
+        if chromosome == '21' and start < max(centro['chr21']) and end < max(centro['chr21']):
+            return round(average_values_greater_than_a(cop, max(centro['chr21'])))
+        if chromosome == '15' and start < max(centro['chr15']) and end < max(centro['chr15']):
+            return round(average_values_greater_than_a(cop, max(centro['chr15'])))
+        if chromosome == '14' and start < max(centro['chr14']) and end < max(centro['chr14']):
+            # print(chromosome,round(average_values_greater_than_a(cop, max(centro['chr14']))), 'ponzi')
+            return round(average_values_greater_than_a(cop, max(centro['chr14'])))
+        if chromosome == '13' and start < max(centro['chr13']) and end < max(centro['chr13']):
+            return round(average_values_greater_than_a(cop, max(centro['chr13'])))
+    return 2
 
 ##########################ZHAOYANG#################
 import numpy as np
