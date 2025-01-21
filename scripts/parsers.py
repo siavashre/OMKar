@@ -1,8 +1,20 @@
 from collections import defaultdict
 from os.path import exists
+from scripts.objects import Segments, SmapEntry, BP
 
 #################################### parsing RefAligner Copy Number file ##########################################
 def parse_rcmap(cmap_dir):
+    """
+    Parses a RefAligner Copy Number file to extract coverage and copy number information.
+
+    Args:
+        cmap_dir (str): Path to the RefAligner Copy Number file.
+
+    Returns:
+        tuple: Two nested dictionaries:
+            - `cov`: Coverage data where keys are chromosome IDs and values are dictionaries of positions to coverage.
+            - `cop`: Copy number data where keys are chromosome IDs and values are dictionaries of positions to copy numbers.
+    """
     cov = {}
     cov = defaultdict(lambda: {}, cov)
     cop = {}
@@ -23,37 +35,17 @@ def parse_rcmap(cmap_dir):
     return cov, cop # return two dictionary of dictionary which keys are chromosome number and keys are label position and return coverage/ copynumber
     #cov return coverage / #cop return copynumber
 
-class BP: #Class of SV breakpoints 
-    contig_id = '' # contig id the breakpoint is called
-    direction1 = '' # Forward direction is + / Reverse direction is -
-    direction2 = '' # Forward direction is + / Reverse direction is -
-    pos1 = '' # Always lower genomic coordinate and lower chromosomes are sorted
-    pos2 = ''
-    chrom1 = ''
-    chrom2 = ''
-    line = ''
-    type = ''
-
-class SmapEntry: #Class of each entry in Smap file
-    smap_id = ''
-    q_id = ''
-    ref_c_id1 = ''
-    ref_c_id2 = ''
-    ref_start = 0
-    ref_end = 0
-    query_start = 0
-    query_end = 0
-    confidence = 0
-    xmap_id1 = ''
-    xmap_id2 = ''
-    sv_type = ''
-    line = ''
-    size = 0
-    linkID = ''
-    VAF = 0
-
 #################################### parsing RefAligner smap file ##########################################
 def parse_smap(smap_dir):
+    """
+    Parses a RefAligner Smap file to extract structural variation breakpoints.
+
+    Args:
+        smap_dir (str): Path to the Smap file.
+
+    Returns:
+        list: A list of `SmapEntry` objects representing structural variation breakpoints.
+    """
     with open(smap_dir, 'r') as f:
         bfb_count = {}
         bfb_count = defaultdict(lambda: [], bfb_count)
@@ -85,21 +77,19 @@ def parse_smap(smap_dir):
                 breakpoints.append(smap_entry)
     return breakpoints # return list of smap entries
 
-class Segments: #Class represent each genomic segment
-    id = ''
-    chromosome = 0
-    start = 0
-    end = 0 
-    width = 0
-    type = ''
-    fractional_cn = 0
-    int_cn = 0
-    conf = 0
-    line = ''
-    bp = [] # this list contains all SVs intersect middle of this genomic segment including start and end position of segment, we will use this then for spiliting this to new genomic segments
-
 ######################## parse CNV call ########################
 def parse_cnvcall(cnvcall):
+    """
+    Parses a CNV (Copy Number Variation) call file to extract genomic segments.
+
+    Args:
+        cnvcall (str): Path to the CNV call file.
+
+    Returns:
+        tuple: Two lists of `Segments` objects:
+            - Filtered segments based on length, confidence, and type.
+            - All segments, including those filtered out.
+    """
     segment_list = []
     all_seg = []
     with open(cnvcall, 'r') as f:
@@ -125,21 +115,21 @@ def parse_cnvcall(cnvcall):
                 segment.line = line
                 segment.bp = [segment.start, segment.end]
                 if segment.width > 200000  and not segment.type.endswith('masked') and segment.conf>= 0.98: #Apply filters on CNV call masked region and segments legnth 200000bp is a limit of filtering segments
-                    # if segment.width < 500000:
-                    #     if len(segment_list) == 0:
-                    #         segment_list.append(segment)
-                    #     elif (segment.int_cn >= segment_list[-1].int_cn and segment.chromosome == segment_list[-1].chromosome) or segment.chromosome != segment_list[-1].chromosome: #If segment length is between 200 and 500 Kbp. if the CN is great than previouse segment length will add it( this prevent having small deletions between 200 and 500 Kbp)
-                    #         segment_list.append(segment)
-                    # else:# if segment length is greater than 500Kbp add it.
                         segment_list.append(segment)
-                    # segment_list.append(segment)
-                # elif segment.width > 200000  and segment.conf>= 0.99: #If segment is in the telomeric reason and we are high conf add it
-                #     segment_list.append(segment)
                 all_seg.append(segment)
     return segment_list, all_seg #return two lists of segment class. one the filtered one and one all of them. 
 
 #################################### parsing Alignment xmap file ##########################################
 def parse_xmap(xmapf):
+    """
+    Parses an Xmap file to extract alignment information.
+
+    Args:
+        xmapf (str): Path to the Xmap file.
+
+    Returns:
+        dict: A dictionary where keys are Xmap entry IDs and values are dictionaries of alignment details.
+    """
     detailFields = ["XmapEntryID", "QryContigID", "RefContigID", "Orientation", "QryLen", "RefLen",
                     "QryStartPos", "QryEndPos", "RefStartPos", "RefEndPos", "Alignment","Confidence"]
     numeric = ["QryStartPos", "QryEndPos", "RefStartPos", "RefEndPos","Confidence"]
@@ -163,6 +153,15 @@ def parse_xmap(xmapf):
 
 ################################ Parse bed file ###########################
 def parse_bed(bed_dir):
+    """
+    Parses a BED file to extract genomic regions.
+
+    Args:
+        bed_dir (str): Path to the BED file.
+
+    Returns:
+        list: A list of lists, each containing chromosome ID, start position, and end position of a region.
+    """
     l = []
     with open(bed_dir, 'r') as f:
         for line in f:
@@ -175,6 +174,15 @@ def parse_bed(bed_dir):
 ############################################# 
 #This function parse the centromere region
 def parse_centro(centro):
+    """
+    Parses a centromere file to extract centromere regions.
+
+    Args:
+        centro (str): Path to the centromere file.
+
+    Returns:
+        dict: A dictionary where keys are chromosome IDs and values are lists of start and end positions of centromeres.
+    """
     r = {}
     r = defaultdict(lambda: [], r)
     with open(centro, 'r') as f:
@@ -189,6 +197,16 @@ def parse_centro(centro):
 
 
 def parse_forbiden_region(forbiden):
+    """
+    Parses a forbidden regions file to extract masked genomic regions.
+
+    Args:
+        forbiden (str): Path to the forbidden regions file.
+
+    Returns:
+        dict: A dictionary where keys are chromosome IDs and values are lists of masked regions.
+              Each region is represented as a list containing start position, end position, and region type.
+    """
     masked_regions = {}
     with open(forbiden, 'r') as file:
         lines = file.readlines()

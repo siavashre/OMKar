@@ -4,10 +4,31 @@ from scipy import interpolate
 from matplotlib.patches import ConnectionPatch
 
 def Plot_graph(g, file, name, centro):  # this function plot the graph
+    """
+    Plots a genomic graph, including vertices and edges, for visualization of structural variations (SVs).
+
+    Args:
+        g (Graph): The graph object containing vertices and edges to be plotted.
+        file (str): Path to save the generated plot image.
+        name (str): Title for the plot.
+        centro (dict or None): Dictionary of centromere positions for chromosomes. Keys should be chromosome IDs
+                               (e.g., "chr1", "chr2") and values should be lists of centromere positions.
+
+    Description:
+        - Each chromosome is plotted in its own subplot, with vertices plotted as points and edges connecting them.
+        - Edges are color-coded:
+            - "S" (Segmental): Red lines.
+            - "R" (Rearrangement): Blue lines.
+            - "SV" (Structural Variations): Black curved lines.
+        - Centromeres are indicated by green vertical lines, if provided.
+        - Inter-chromosomal edges are represented with connection patches.
+
+    Returns:
+        None: The plot is saved to the specified file path.
+    """
     vertices = g.vertices
     fig = plt.figure(figsize=(20, 25))
     plt.title(name)
-    # fig.suptitle(args.name, fontsize=48)
     rows = 6
     column = 4
     grid = plt.GridSpec(rows, column, wspace=.25, hspace=.25)
@@ -25,7 +46,6 @@ def Plot_graph(g, file, name, centro):  # this function plot the graph
                 if v.cn > max_m:
                     max_m = v.cn
         for e in g.edges:
-            # print(e[0])
             node1 = g.return_node(e[0])
             node2 = g.return_node(e[1])
             if int(node1.chromosome) == i + 1 and int(node2.chromosome) == i + 1 and e[3] == 'S':
@@ -39,7 +59,6 @@ def Plot_graph(g, file, name, centro):  # this function plot the graph
                 if node2.pos < node1.pos:
                     x = [node2.pos, (node1.pos + node2.pos) / 2, node1.pos]
                     y = [node2.cn, max(node1.cn, node2.cn) + 1, node1.cn]
-                # print(x)
                 x2 = np.linspace(x[0], x[-1], 100)
                 y2 = interpolate.pchip_interpolate(x, y, x2)
                 plt.plot(x2, y2, markersize=0.5, color="black", alpha=0.3)

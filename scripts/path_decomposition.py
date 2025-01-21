@@ -1,6 +1,20 @@
 from scripts.utill import *
 
 def detect_del_dup_cn(chromosome, start, end, segments):  # this function detect that for a deletion or duplication, do we have CNV call as well or no
+    """
+    Detects whether a deletion or duplication overlaps with a CNV (Copy Number Variation) call.
+
+    Args:
+        chromosome (int): Chromosome number.
+        start (int): Start position of the deletion/duplication.
+        end (int): End position of the deletion/duplication.
+        segments (list): List of genomic segments.
+
+    Returns:
+        tuple: (bool, int, int)
+            - True if overlapping with a CNV call.
+            - Start and end positions of the overlapping segment.
+    """
     # chromosome, start, end position of deletion call are input
     for i, s in enumerate(segments):  # search in segments
         if int(s.chromosome) == int(chromosome):
@@ -10,8 +24,6 @@ def detect_del_dup_cn(chromosome, start, end, segments):  # this function detect
                 if (end - start) < 1.2 * (s.end - s.start):
                     if (s.int_cn != segments[(i + 1) % len(segments)].int_cn and s.chromosome == segments[(i + 1) % len(segments)].chromosome) or (
                             s.int_cn != segments[i - 1].int_cn and s.chromosome == segments[i - 1].chromosome):
-                        # print('Kir', chromosome, start, end, overlap)
-                        # print('Kir', start , end, s.start,s.end)
                         return True, s.start, s.end
             if overlap > 0.9 * (end - start):
                 if (s.end - s.start) < 1.2 * (end - start):
@@ -22,6 +34,19 @@ def detect_del_dup_cn(chromosome, start, end, segments):  # this function detect
 
 
 def detect_duplicatioon_inversion_cn(sv, xmap, segments):  # same as above for duplication calls.
+    """
+    Detects whether a duplication or inversion overlaps with a CNV call.
+
+    Args:
+        sv: Structural variation object.
+        xmap: Dictionary containing alignment data.
+        segments (list): List of genomic segments.
+
+    Returns:
+        tuple: (bool, int)
+            - True if overlapping with a CNV call.
+            - Start or end position of the overlapping segment.
+    """
     window_lim = 300000
     node_dir1, node_dir2 = detect_sv_directions(sv, xmap)
     if node_dir1 == 'T' and node_dir2 == 'T':  # right fold back
@@ -48,6 +73,19 @@ def detect_duplicatioon_inversion_cn(sv, xmap, segments):  # same as above for d
 
 
 def detect_receprical_translocation(sv, xmap, smap):  # sometimes one of these reciprocal translocation have low confidence but this function we retrive it
+    """
+    Detects reciprocal translocations with low confidence in one segment.
+
+    Args:
+        sv: Structural variation object.
+        xmap: Dictionary containing alignment data.
+        smap: List of Smap entries.
+
+    Returns:
+        tuple: (bool, SmapEntry or None)
+            - True if a reciprocal translocation is detected.
+            - The corresponding Smap entry if detected.
+    """
     window_lim = 200000
     for i in smap:
         if i.ref_c_id1 == sv.ref_c_id1 and i.ref_c_id2 == sv.ref_c_id2 and sv.smap_id != i.smap_id:
@@ -61,6 +99,15 @@ def detect_receprical_translocation(sv, xmap, smap):  # sometimes one of these r
 
 def close_gaps_between_segments(segments):
     # Sort segments by chromosome and start position to ensure they are consecutive
+    """
+    Adjusts genomic segments to close gaps between them.
+
+    Args:
+        segments (list): List of genomic segments.
+
+    Returns:
+        list: Adjusted segments with gaps closed.
+    """
     segments.sort(key=lambda seg: (int(seg.chromosome), seg.start))
 
     for i in range(len(segments) - 1):
@@ -82,6 +129,15 @@ def close_gaps_between_segments(segments):
 
 
 def reverse_path(path):
+    """
+    Reverses the direction of a genomic path.
+
+    Args:
+        path (str): Genomic path as a string of movements.
+
+    Returns:
+        str: Reversed genomic path.
+    """
     # Split the path into individual movements
     movements = path.split()
     # Reverse the list of movements to reverse the order
@@ -100,6 +156,15 @@ def reverse_path(path):
 
 
 def find_indices_with_sum_of_2(numbers):
+    """
+    Finds all pairs of indices in a list whose values sum to 2.
+
+    Args:
+        numbers (list): List of integers.
+
+    Returns:
+        list: List of tuples containing pairs of indices.
+    """
     n = len(numbers)
     ans = []
     for i in range(n):
@@ -110,6 +175,16 @@ def find_indices_with_sum_of_2(numbers):
 
 
 def share_same_segments(path1, path2):
+    """
+    Checks if two paths share any segments.
+
+    Args:
+        path1 (str): First genomic path.
+        path2 (str): Second genomic path.
+
+    Returns:
+        bool: True if the paths share segments, False otherwise.
+    """
     # Split the paths into individual movements
     movements1 = path1.split()
     movements2 = path2.split()
@@ -121,6 +196,15 @@ def share_same_segments(path1, path2):
 
 
 def convert_segment_to_path(p):
+    """
+    Converts segment movements to path movements.
+
+    Args:
+        p (list): List of segment movements.
+
+    Returns:
+        list: List of converted path movements.
+    """
     ans = []
     for i in p:
         direction = i[-1]
@@ -136,6 +220,21 @@ def convert_segment_to_path(p):
 
 
 def swap_segment(p1, p2, g, centro):
+    """
+    Swaps segments between two paths if the resulting paths meet non-centromeric criteria.
+
+    Args:
+        p1 (str): First path.
+        p2 (str): Second path.
+        g (Graph): Graph object.
+        centro (dict): Centromere positions.
+
+    Returns:
+        tuple: (bool, str, str)
+            - True if paths were swapped.
+            - New first path.
+            - New second path.
+    """
     movements1 = p1.split()
     movements2 = p2.split()
     for i in range(len(movements1)):
@@ -150,6 +249,18 @@ def swap_segment(p1, p2, g, centro):
 
 
 def fix_dicentric(paths, scores, g, centro):
+    """
+    Fixes dicentric chromosomes by swapping segments in paths.
+
+    Args:
+        paths (list): List of paths.
+        scores (list): List of path scores.
+        g (Graph): Graph object.
+        centro (dict): Centromere positions.
+
+    Returns:
+        tuple: Updated paths and scores.
+    """
     bad_path = []
     bad_scores = []
     ans_path = []
@@ -184,6 +295,15 @@ def fix_dicentric(paths, scores, g, centro):
             ans_score.append(bad_scores[i])
     return ans_path, ans_score
 def convert_string_to_path_direction(path):
+    """
+    Converts a path string into numeric IDs and directions.
+
+    Args:
+        path (str): Path as a string.
+
+    Returns:
+        tuple: (list of integers, list of directions)
+    """
     segments = path.strip().split()  # Split the string by spaces and remove any leading/trailing whitespace
     numbers = []
     directions = []
@@ -194,6 +314,18 @@ def convert_string_to_path_direction(path):
         directions.append(direction)
     return numbers, directions
 def calculate_path_length_from_centro(path, g, centro, arm):
+    """
+    Calculates the length of a path relative to centromere positions.
+
+    Args:
+        path (list): Path as a list of segments.
+        g (Graph): Graph object.
+        centro (dict): Centromere positions.
+        arm (str): Arm type ('p' or 'q').
+
+    Returns:
+        bool: True if the length is valid, False otherwise.
+    """
     l = 0
     for p in path:
         id1 = int(p) *2 -2
@@ -216,6 +348,18 @@ def calculate_path_length_from_centro(path, g, centro, arm):
             return False
     return False
 def merge_path_with_0_score(ans2 , scores_path, g, centro):
+    """
+    Merges paths with zero scores into neighboring paths.
+
+    Args:
+        ans2 (list): List of paths.
+        scores_path (list): List of path scores.
+        g (Graph): Graph object.
+        centro (dict): Centromere positions.
+
+    Returns:
+        tuple: Updated paths and scores.
+    """
     removed = set()
     for i in range(len(scores_path)):
         if scores_path[i] == 0:
@@ -224,7 +368,6 @@ def merge_path_with_0_score(ans2 , scores_path, g, centro):
             for j in range(len(scores_path)):
                 if j != i and scores_path[j] != 0:
                     s2, d2 = convert_string_to_path_direction(ans2[j])
-                    print('Ger', ans2, scores_path, removed, i, s1, d1, s2 , d2,j)
                     if s1[0] == s2[-1] and d1[0]!=d2[-1] and calculate_path_length_from_centro(s1,g,centro,'p'):
                         ans2[j] = ans2[j]  + ans2[i]
                         scores_path[j]+= scores_path[i]
@@ -241,6 +384,18 @@ def merge_path_with_0_score(ans2 , scores_path, g, centro):
     return  ans2 , scores_path
 
 def convert_path_to_segment(p, component_edges,g, centro):  # this is important function that convert Eulerion path with vertices ID to segment path.
+    """
+    Converts a path of vertex IDs into a path of genomic segments.
+
+    Args:
+        p (list): List of vertex IDs.
+        component_edges (list): List of edges in the connected component.
+        g (Graph): Graph object.
+        centro (dict): Centromere positions.
+
+    Returns:
+        tuple: (list of segment paths, list of path scores)
+    """
     component = list(set(p))
     ## form dict for all cc edges to be efficient in search
     component_edge_dict = {}  # {(node1, node2, type)}: multiplicity
@@ -272,8 +427,6 @@ def convert_path_to_segment(p, component_edges,g, centro):  # this is important 
         # if previous is transition (SV/REF), next must be SEG; if previous is SEG, prefer next to be transition
         if previous_edge_type in ['SV', 'R', 'D']:
             if (current_node, next_node, 'S') not in component_edge_dict and (next_node, current_node, 'S') not in component_edge_dict:
-                # print(component_edge_dict)
-                # print(edge_labels)
                 raise RuntimeError(f'illegal follow up of SV/R, no S present: {component_edge_dict}; {edge_labels}; {p}; {component_edges}')
             else:
                 if (current_node, next_node, 'S') in component_edge_dict:
@@ -341,20 +494,30 @@ def convert_path_to_segment(p, component_edges,g, centro):  # this is important 
         scores_path.append(check_non_centromeric_path(p,g, centro))
         temp = ''
         for i in range(0, len(p) - 1, 2):
-            # print('as', i, len(p), p)
             seg_number = int((max(p[i], p[i + 1]) + 1) / 2)
             direction = '+'
             if p[i] > p[i + 1]:
                 direction = '-'
             temp = temp + str(seg_number) + direction + ' '
         ans2.append(temp)
-
-    # return ans2, [-1 for _ in range(len(ans2))]
     ans2 , scores_path = fix_dicentric(ans2, scores_path, g, centro)
     ans2 , scores_path = merge_path_with_0_score(ans2 , scores_path, g, centro)
     return ans2 , scores_path
 
 def check_exiest_call(chromosome, start, end, type, all_seg):  # if we have a call like gain or loss  but in CNV it is filtered retrive it
+    """
+    Checks if a CNV call exists within a specified genomic region.
+
+    Args:
+        chromosome (int): Chromosome number.
+        start (int): Start position of the region.
+        end (int): End position of the region.
+        type (str): Type of CNV call.
+        all_seg (list): List of all genomic segments.
+
+    Returns:
+        bool: True if a CNV call exists, False otherwise.
+    """
     for s in all_seg:
         if s.chromosome == chromosome and s.start >= start and s.end <= end and s.type[:4] == type[:4]:
             return True
@@ -362,6 +525,16 @@ def check_exiest_call(chromosome, start, end, type, all_seg):  # if we have a ca
 
 def extend_segments_cn(segments,
                        all_seg):  # this function check that if between two cnv call gap is less than 400Kbp and there is a call in CNV call but it marked or filtered we assume it is true and extend the segment length
+    """
+    Extends segments based on nearby CNV calls.
+
+    Args:
+        segments (list): List of genomic segments.
+        all_seg (list): List of all CNV segments.
+
+    Returns:
+        list: Updated segments with extended lengths.
+    """
     start = True
     for i in range(0, len(segments) - 1):
         s = segments[i]
@@ -377,8 +550,19 @@ def extend_segments_cn(segments,
 
 
 def merge_segments_all_seg_smap(segments, all_seg, smap, centro):
+    """
+    Merges segments, all CNV calls, and Smap data.
+
+    Args:
+        segments (list): List of genomic segments.
+        all_seg (list): List of all CNV segments.
+        smap (list): List of Smap entries.
+        centro (dict): Centromere positions.
+
+    Returns:
+        list: Updated segments with merged data.
+    """
     ans = []
-    # limit = 50000
     limit = 200000
     for sv in smap:
         if sv.sv_type == 'deletion':  # and sv.ref_c_id1=='17':# and sv.ref_start > 20400000 and sv.ref_start < 21000000:
@@ -410,6 +594,15 @@ def merge_segments_all_seg_smap(segments, all_seg, smap, centro):
 
 def adjust_and_remove_overlapping_segments(all_segments):
     # Sort segments by chromosome and start position
+    """
+    Adjusts segments to remove overlaps and containments.
+
+    Args:
+        all_segments (list): List of all genomic segments.
+
+    Returns:
+        list: Adjusted segments without overlaps.
+    """
     all_segments.sort(key=lambda seg: (int(seg.chromosome), seg.start))
 
     adjusted_segments = []
@@ -441,6 +634,17 @@ def adjust_and_remove_overlapping_segments(all_segments):
 
 
 def fix_coordinate(segments, all_seg , smap):
+    """
+    Fixes segment coordinates based on Smap data.
+
+    Args:
+        segments (list): List of genomic segments.
+        all_seg (list): List of all CNV segments.
+        smap (list): List of Smap entries.
+
+    Returns:
+        tuple: Adjusted segments and all CNV segments.
+    """
     limit = 200000
     for s1 in range(len(all_seg)):
         dist = 999999999

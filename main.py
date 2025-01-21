@@ -1,9 +1,6 @@
 import sys
-from parsers import *
 import argparse
 from matplotlib import rcParams
-import csv
-from scripts.utill import *
 from KarReporter.KarUtils.read_OMKar_output import *
 from pathlib import Path
 rcParams['pdf.fonttype'] = 42
@@ -11,6 +8,23 @@ from scripts.run import run_omkar
 ######################################################################################################################################
 
 def find_input_file_paths(dir):
+    """
+    Automatically detects input file paths for Bionano Solve or curated directory structures.
+
+    Args:
+        dir (str): Path to the master directory containing input files.
+
+    Returns:
+        dict: Dictionary with paths to the four required input files:
+            - 'cnv': CNV call file path.
+            - 'rcmap': RCmap file path.
+            - 'xmap': Xmap file path.
+            - 'smap': Smap file path.
+            - 'dir_structure': Directory structure type ('bionano_default' or 'curated').
+
+    Raises:
+        RuntimeError: If the input file structure could not be parsed.
+    """
     """
     auto detect between Bionano Solve output structure, OR curated output structure
     :param dir: master dir of the sample containing all input files
@@ -63,6 +77,30 @@ def find_input_file_paths(dir):
     raise RuntimeError(f'file structure could not be parsed: {dir}')
 
 def main():
+    """
+    Main function for running the OMKar pipeline.
+
+    Parses command-line arguments to determine the input directory, centromere coordinates,
+    output directory, and additional flags for single-sample processing, report generation,
+    image generation, and debug mode.
+
+    Workflow:
+        - Detects input file paths.
+        - Executes the OMKar pipeline for either a single sample or multiple samples.
+        - Optionally generates an HTML report summarizing the results.
+
+    Command-line Arguments:
+        -dir (str): Path to the directory containing input data (required).
+        -centro (str): Path to the file containing centromere coordinates (default: 'hg38_centro.txt').
+        -o (str): Path to the output directory (required).
+        -single (flag): Process only a single sample.
+        -report (flag): Generate an HTML report.
+        -noImage (flag): Disable image generation in the report.
+        -reportDebug (flag): Enable debug information in the HTML report.
+
+    Returns:
+        None: Outputs are saved to the specified output directory.
+    """
     repo_dir = os.path.dirname(os.path.abspath(__file__))
     default_stdout = sys.stdout
     default_centro_path = f'{repo_dir}/hg38_centro.txt'

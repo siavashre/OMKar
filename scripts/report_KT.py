@@ -2,6 +2,16 @@ import argparse
 from collections import defaultdict
 import pandas as pd
 def parse_centro(centro):
+    """
+    Parses a file containing centromere coordinates.
+
+    Args:
+        centro (str): Path to the centromere coordinates file.
+
+    Returns:
+        dict: Dictionary with chromosome IDs as keys and a list containing the minimum
+              and maximum centromere positions as values.
+    """
     r = {}
     r = defaultdict(lambda: [], r)
     with open(centro, 'r') as f:
@@ -16,6 +26,17 @@ def parse_centro(centro):
         r[k] = [min(r[k]), max(r[k])]
     return r
 def parse_decipher(dec_file):
+    """
+    Parses a Decipher file to extract gene annotations.
+
+    Args:
+        dec_file (str): Path to the Decipher file.
+
+    Returns:
+        tuple:
+            - dict: Dictionary mapping gene symbols to lists of annotations.
+            - dict: Dictionary mapping gene symbols to Decipher annotations.
+    """
     a = {}
     a = defaultdict(lambda: [], a)
     b = {}
@@ -30,6 +51,17 @@ def parse_decipher(dec_file):
 
 
 def parse_genes(genes_file):
+    """
+    Parses a file containing gene coordinates.
+
+    Args:
+        genes_file (str): Path to the genes file.
+
+    Returns:
+        tuple:
+            - dict: Dictionary mapping gene names to chromosome and coordinate information.
+            - dict: Dictionary mapping gene names to their chromosome ID.
+    """
     r = {}
     r = defaultdict(lambda: [], r)
     d = {}
@@ -37,7 +69,6 @@ def parse_genes(genes_file):
         for line in f:
             line = line.strip().split('\t')
             gene = line[3]
-            # print(line[0],gene)
             chrom = line[0][3:]
             if len(chrom )< 4 :
                 if chrom=='X':
@@ -48,12 +79,18 @@ def parse_genes(genes_file):
                 pos2 = int(line[2])
                 d[gene] = chrom
                 r[gene] = [chrom,min(pos1, pos2), max(pos1,pos2),gene]
-            # print(chrom,gene)
-    # for k in r:
-    #     r[k] = [d[k],min(r[k]), max(r[k]),k]
     return r
 
 def find_duplicates(input_list):
+    """
+    Identifies duplicates in a list.
+
+    Args:
+        input_list (list): List of items to check for duplicates.
+
+    Returns:
+        list: List of duplicate items.
+    """
     seen = set()
     duplicates = set()
     for item in input_list:
@@ -63,6 +100,19 @@ def find_duplicates(input_list):
             seen.add(item)
     return list(duplicates)
 def intervals_overlap(interval1, interval2):
+    """
+    Determines the type of overlap between two intervals.
+
+    Args:
+        interval1 (tuple): First interval as (start, end).
+        interval2 (tuple): Second interval as (start, end).
+
+    Returns:
+        int:
+            - 0 if the intervals do not overlap.
+            - 1 if they partially overlap.
+            - 2 if one interval completely overlaps the other.
+    """
     start1, end1 = interval1
     start2, end2 = interval2
 
@@ -74,12 +124,25 @@ def intervals_overlap(interval1, interval2):
     else:
         return 1
 def return_gene_list(genes,sv_segment,integration_point, segments):
+    """
+    Finds the genes that overlap with given SV segments and integration points.
+
+    Args:
+        genes (dict): Dictionary of gene coordinates.
+        sv_segment (set): Set of structural variation segments.
+        integration_point (list): List of integration points.
+        segments (dict): Dictionary of segments with their coordinates.
+
+    Returns:
+        tuple:
+            - set: Set of overlapping gene names.
+            - dict: Dictionary mapping genomic regions to overlapping genes.
+    """
     ans_genes = set()
     a = {}
     a = defaultdict(lambda: set(), a)
     for i in genes.values():
         for j in integration_point:
-            # print(j, i)
             if j[0] == i[0]:
                 if intervals_overlap((i[1],i[2]),(j[1],j[2]))==1:
                     ans_genes.add(i[-1])
@@ -95,9 +158,19 @@ def return_gene_list(genes,sv_segment,integration_point, segments):
                 elif intervals_overlap((i[1],i[2]),(segments[j][1],segments[j][2]))==2:
                     ans_genes.add(i[-1]+'*')
                     a[j].add(i[-1]+'*')
-    # print(ans_genes)
     return ans_genes ,a
 def parse_file(file_path, centro,decipher):
+    """
+    Parses a genomic file to extract and process paths, SV segments, and integration points.
+
+    Args:
+        file_path (str): Path to the genomic file.
+        centro (dict): Dictionary of centromere positions.
+        decipher (dict): Dictionary of gene annotations from Decipher.
+
+    Returns:
+        None: Outputs processed data to the console.
+    """
     segments = {}
     with open(file_path, 'r') as file:
         for line in file:
@@ -134,7 +207,6 @@ def parse_file(file_path, centro,decipher):
                             if path[i][-1] == '-':
                                 reverse_path = True
                             path[i] = path[i] + '*'
-
                     if reverse_path:
                         path.reverse()
                         for i in range(len(path)):
@@ -174,10 +246,6 @@ def parse_file(file_path, centro,decipher):
                                     integration_point.append((a2[0],a2[2]-30000,a2[2]))
                                 else:
                                     integration_point.append((a2[0],a2[1],a2[1]+30000))
-
-
-                    # print(integration_point)
-                    # li = path_number + '='+ ' '.join(i for i in path) + '\tChromosome='+chrom + '\trev='+str(reverse_path)+'\tSV_segment='+','.join(i for i in sv_segment)+'\tIntegrationPoint='+','.join('chr'+str(i[0])+':'+str(int(i[1]))+'-'+str(int(i[2])) for i in integration_point)
                     name =args.input[-5:]
                     li = name[:1] + '\t'+path_number + '='+ ' '.join(i for i in path) + '\t'+chrom + '\t'+str(reverse_path)+'\t'+','.join(i for i in sv_segment)+'\t'+','.join('chr'+str(i[0])+':'+str(int(i[1]))+'-'+str(int(i[2])) for i in integration_point)
                     ans_gene, ans_gene2 = return_gene_list(genes,sv_segment,integration_point, segments)
@@ -189,16 +257,10 @@ def parse_file(file_path, centro,decipher):
                             dec_list.append(dd)
                         if g in genes_mim.keys():
                             genes_dec_list.append(genes_mim[g])
-
-
-                    # li = li + '\tgenes='+','.join(s for s in ans_gene)
-                    # li = li + '\tdecipher='+','.join(s for s in dec_list)
-                    # li = li + '\t'+';'.join(s for s in ans_gene)
                     li = li + '\t'+' '.join(s+':('+(';'.join(ss for ss in ans_gene2[s]))+')' for s in ans_gene2.keys())
                     li = li + '\t'+';'.join(s for s in genes_dec_list)
                     li = li + '\t'+'; '.join(s for s in dec_list)
                     print(li)
-                    # print(line.strip().split('\t')[0])
             elif not line.startswith('Segment\tNumber'):
                 line = line.strip().split('\t')
                 segment_number = line[1]
@@ -206,9 +268,7 @@ def parse_file(file_path, centro,decipher):
                 segment_start = float(line[3])
                 segment_end = float(line[4])
                 contains_centro = not(segment_end < centro['chr'+segment_chr][0] or centro['chr'+segment_chr][1] < segment_start)
-                # print(segment_number, segment_start,segment_end, centro['chr'+segment_chr][0],centro['chr'+segment_chr][1],contains_centro)
                 segments[segment_number] = (segment_chr,segment_start,segment_end, contains_centro)
-    # print(segments)
 
 
 parser = argparse.ArgumentParser()
@@ -220,5 +280,4 @@ args  = parser.parse_args()
 centro = parse_centro(args.centro)
 genes = parse_genes(args.genes)
 decipher , genes_mim  = parse_decipher(args.dec)
-# print(genes)
 parse_file(args.input, centro,decipher)

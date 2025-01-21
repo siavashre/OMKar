@@ -1,15 +1,32 @@
-from parsers import *
-import os
+from scripts.parsers import *
 import csv
 import shutil
-from scripts.utill import *
-from scripts.objects import Vertices, Graph
 from KarReporter.KarUtils.read_OMKar_output import *
 import sys
 from scripts.visualization import Plot_graph
 from scripts.eulerian_path_finder import *
 from scripts.path_decomposition import *
 def parse_inputs(cnv_path, smap_path, rcmap_path, xmap_path, centro_path):
+    """
+    Parses input files to extract genomic segments, structural variation (SV) data, centromere regions, and other required data.
+
+    Args:
+        cnv_path (str): Path to the CNV call file.
+        smap_path (str): Path to the Smap file.
+        rcmap_path (str): Path to the RCmap file.
+        xmap_path (str): Path to the Xmap file.
+        centro_path (str): Path to the centromere file.
+
+    Returns:
+        tuple: Parsed data including:
+            - segments: List of genomic segments.
+            - all_seg: List of all segments.
+            - smap: Parsed structural variation data.
+            - centro: Centromere information.
+            - rcov: Coverage data.
+            - rcop: Copy number data.
+            - xmap: Alignment data.
+    """
     segments, all_seg = parse_cnvcall(cnv_path)
     smap = parse_smap(smap_path)
     segments, all_seg = fix_coordinate(segments, all_seg, smap)
@@ -23,6 +40,20 @@ def parse_inputs(cnv_path, smap_path, rcmap_path, xmap_path, centro_path):
     return segments, all_seg, smap, centro, rcov, rcop, xmap
 
 def detect_and_filter_svs(smap, rcop, segments, xmap, centro):
+    """
+    Detects and filters structural variations (SVs) based on size, confidence, and copy number criteria.
+    Also integrates SVs into genomic segments.
+
+    Args:
+        smap (list): List of Smap entries representing SVs.
+        rcop (dict): Copy number data for chromosomes.
+        segments (list): List of genomic segments.
+        xmap (dict): Xmap alignment data.
+        centro (dict): Centromere regions for chromosomes.
+
+    Returns:
+        tuple: Updated segments and filtered SVs.
+    """
     chrY_cn = int(np.average(list(rcop['24'].values())) + 0.5)
     chrX_cn = round(np.average(list(rcop['23'].values())))
     if chrY_cn > 0:
@@ -147,26 +178,17 @@ def detect_and_filter_svs(smap, rcop, segments, xmap, centro):
             exist, s = detect_receprical_translocation(i, xmap, smap)
             if exist:
                 svs.append(s)
-                print(s.line.strip())
-            print(i.line.strip())
         # indels
         elif i.sv_type.startswith('inse') or i.sv_type.startswith('delet'):
-            # elif i.sv_type.startswith('delet'):
             if not i.sv_type.endswith('nbase') and not i.sv_type.endswith('tiny') and i.confidence >= 0:
                 if i.sv_type.startswith('delet') and i.size > 200000:
-                    print(i.line.strip())
                     if detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)[0]:
                         _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
                         svs.append(i)
-                        print(i.line.strip())
                     elif i.confidence >= 0.98 and i.size > 2000000:  # This is a limit for detection thos misslabeld translocation as deletion in Bionano Pipeline
-                        #     # _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
                         svs.append(i)
-                    #     print(i.line.strip())
-                    # print('Gerye', i.line.strip())
                 elif i.size > 500000 and abs(i.ref_end - i.ref_start) > 500000:  # this would be for insertion length more than 500Kbp
                     svs.append(i)
-                    print(i.line.strip())
         # if we have inversion SV
         elif i.sv_type == 'inversion' and i.confidence >= 0.7:  # filter low confidance
             start, end = 0, 0
@@ -186,13 +208,10 @@ def detect_and_filter_svs(smap, rcop, segments, xmap, centro):
             i.ref_end = end
             if abs(end - start) > 400000:  # apply filter on size of inversion
                 svs.append(i)
-                print(i.line.strip(), start, end, dir)
-                print(s.line.strip())
         elif i.sv_type == 'inversion_paired' and i.confidence >= 0.7:  # if it is full inversion
             s = find_in_smap(i.linkID, smap)
             if abs(i.ref_start - s.ref_end) > 500000:
                 i.ref_end = s.ref_end
-                print(i.line.strip())
                 svs.append(i)
         elif i.sv_type == 'duplication_inverted':
             if detect_duplicatioon_inversion_cn(i, xmap, segments)[0]:
@@ -200,20 +219,12 @@ def detect_and_filter_svs(smap, rcop, segments, xmap, centro):
                 i.ref_start = fold_point
                 i.ref_end = fold_point
                 svs.append(i)
-                print(i.line.strip())
         elif i.sv_type == 'duplication' or i.sv_type == 'duplication_split':
             if detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)[0]:
                 _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end, segments)
                 svs.append(i)
-                print(i.line.strip())
-        # elif i.sv_type == 'duplication_split': #This maybe deleted, and get back to duplocation_split
-        #     # if detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)[0]:
-        #     #     _, i.ref_start, i.ref_end = detect_del_dup_cn(i.ref_c_id1, i.ref_start, i.ref_end)
-        #         svs.append(i)
-        #         print(i.line.strip())
         elif i.size > 500000 and not i.sv_type.startswith('inversion'):  # Other type of SV
             svs.append(i)
-            print(i.line.strip())
 
     for sv in svs:  # integrate BPs and Segments
         find_bp_in_segment(sv.ref_c_id1, sv.ref_start, segments)  #
@@ -225,6 +236,18 @@ def detect_and_filter_svs(smap, rcop, segments, xmap, centro):
 
 def build_graph(segments, svs, output_path, name):
     # Graph Creation
+    """
+    Constructs a graph from genomic segments and structural variations.
+
+    Args:
+        segments (list): List of genomic segments.
+        svs (list): List of structural variations.
+        output_path (str): Path to save the graph and related files.
+        name (str): Name of the dataset for labeling outputs.
+
+    Returns:
+        Graph: A graph object representing the genomic structure.
+    """
     aa = 0
     g = Graph()
     counter = 0
@@ -259,7 +282,6 @@ def build_graph(segments, svs, output_path, name):
                 g.edges.append((counter - 1, counter, s.int_cn, 'S'))
                 g.return_node(counter).append_edges(counter - 1)
                 g.return_node(counter - 1).append_edges(counter)
-                # g.edges.append((counter,counter-1, s.int_cn,'S'))
                 counter += 1
                 prev_chr = s.chromosome
             else:  # Create both Tail and Head node
@@ -274,7 +296,6 @@ def build_graph(segments, svs, output_path, name):
                 g.edges.append((counter, counter - 1, s.int_cn, 'S'))
                 g.return_node(counter - 1).append_edges(counter)
                 g.return_node(counter).append_edges(counter - 1)
-                # g.edges.append((counter-1,counter, s.int_cn,'S'))
                 counter += 1
                 ####
                 aa += 1
@@ -298,7 +319,6 @@ def build_graph(segments, svs, output_path, name):
                 int(sv.ref_c_id1) == int(sv.ref_c_id2) and sv.ref_end < sv.ref_start):
             a = find_nodes(sv.ref_c_id1, sv.ref_start, g.vertices, n_type2)
             b = find_nodes(sv.ref_c_id2, sv.ref_end, g.vertices, n_type1)
-        # if sv.sv_type == 'inversion' or sv.sv_type == 'inversion_paired':
         if sv.sv_type == 'inversion_paired':  # Lets complete the inversion
             if g.return_node(a).type == 'H':
                 new_edge = (a - 1, b - 1, 0, 'SV')
@@ -311,8 +331,6 @@ def build_graph(segments, svs, output_path, name):
         if b == a and (a, b, 0, 'SV') not in g.edges:  # it can be happend in duplication inversion
             g.edges.append((a, b, 0, 'SV'))
             g.return_node(a).append_edges(b)
-        #     print(sv.line)
-        #     print(a,b)
         elif sv.sv_type.startswith('delet'):  # telomere cite deletion prevent
             if (a, b, 0, 'SV') not in g.edges and abs(a - b) != 1:
                 g.edges.append((a, b, 0, 'SV'))
@@ -322,16 +340,29 @@ def build_graph(segments, svs, output_path, name):
             g.edges.append((a, b, 0, 'SV'))
             g.return_node(a).append_edges(b)
             g.return_node(b).append_edges(a)
-        # g.edges.append((b,a,0,'SV'))
     g.print_node()
     g.output_node(f"{output_path}/{name}/{name}.preILP_nodes.txt")
-    print('Siavash')
     print(g.edges)
     g.output_edges(f"{output_path}/{name}/{name}.preILP_edges.txt")
     file = f"{output_path}/{name}/{name}.pdf"
     Plot_graph(g, file, name, centro)
     return g
 def process_connected_components(g, output_path, name):
+    """
+    Processes connected components in the graph to estimate edge multiplicities
+    and identify Eulerian paths.
+
+    Args:
+        g (Graph): The graph object representing the genomic structure.
+        output_path (str): Path to save the processed components.
+        name (str): Name of the dataset for labeling outputs.
+
+    Returns:
+        tuple: Processed data including:
+            - connected_components: List of connected components in the graph.
+            - paths: List of Eulerian paths in the graph.
+            - edges_with_dummy: List of edges with dummy edges added.
+    """
     file2 = f"{output_path}/{name}/{name}_2.png"
     connected_components = find_connected_components(g)
     for component in connected_components:
@@ -372,6 +403,20 @@ def process_connected_components(g, output_path, name):
 
 def generate_outputs(output_path, name, g, connected_components, paths, edges_with_dummy):
     # write in the output
+    """
+    Generates and writes outputs, including raw and processed genomic segment data.
+
+    Args:
+        output_path (str): Path to save the output files.
+        name (str): Name of the dataset for labeling outputs.
+        g (Graph): The graph object representing the genomic structure.
+        connected_components (list): List of connected components in the graph.
+        paths (list): List of Eulerian paths in the graph.
+        edges_with_dummy (list): List of edges with dummy edges added.
+
+    Returns:
+        None: Outputs are written to specified files.
+    """
     segments_border_masked_regions_start = []
     segments_border_masked_regions_end = []
     output3 = f"{output_path}/{name}/{name}_flagged.txt"
@@ -403,8 +448,6 @@ def generate_outputs(output_path, name, g, connected_components, paths, edges_wi
                     structure = structures[jj]
                     if structure.endswith(' '):
                         structure = structure[:-1]
-                    # f.write('Path'+str(c)+'='+','.join(str(z) for z in p)+'\n')
-                    # print('path',p,check_non_centromeric_path(p,g, centro))
                     f.write('Path' + str(c) + ' = ' + structure + '\t score = ' + str(scores[jj]) + '\n')
                     paths_structure = structure.split(' ')
                     paths_structure2 = structure.split(' ')
@@ -462,6 +505,22 @@ def generate_outputs(output_path, name, g, connected_components, paths, edges_wi
 
 
 def run_omkar(cnv_path, smap_path, rcmap_path, xmap_path, centro_path, name, output_path):
+    """
+    Main function to execute the OMKar pipeline. It parses inputs, detects SVs,
+    builds a graph, processes connected components, and generates outputs.
+
+    Args:
+        cnv_path (str): Path to the CNV call file.
+        smap_path (str): Path to the Smap file.
+        rcmap_path (str): Path to the RCmap file.
+        xmap_path (str): Path to the Xmap file.
+        centro_path (str): Path to the centromere file.
+        name (str): Name of the dataset for labeling outputs.
+        output_path (str): Path to save all output files.
+
+    Returns:
+        None: Outputs are saved to the specified directory.
+    """
     global centro, all_seg, output2, xmap
     segments, all_seg, smap, centro, rcov, rcop, xmap = parse_inputs(cnv_path, smap_path, rcmap_path, xmap_path, centro_path)
     os.makedirs(f'{output_path}/{name}/', exist_ok=True)

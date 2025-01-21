@@ -4,6 +4,16 @@ from scripts.utill import *
 from copy import deepcopy
 from scripts.objects import *
 def return_all_edges_in_cc(c, g):  # this function return all edges in graph g which is in connectec components C
+    """
+    Returns all edges in a connected component of a graph.
+
+    Args:
+        c (list): List of vertex IDs in the connected component.
+        g (Graph): Graph object.
+
+    Returns:
+        list: List of edges present in the connected component.
+    """
     # c is a list of all vertices id in this connected component
     component_edges = []
     paired = itertools.combinations(c, 2)  # all combination two of these vertices will check if the edges exist or not
@@ -20,6 +30,18 @@ def return_all_edges_in_cc(c, g):  # this function return all edges in graph g w
     return component_edges
 
 def dfs(i, temp, g, visited):  # run dfs alg on graph g on vertices i. visited is a list of seen vertices before visiting this node.
+    """
+    Performs Depth-First Search (DFS) on a graph.
+
+    Args:
+        i (int): Current vertex ID.
+        temp (list): List to store the vertices visited during this DFS call.
+        g (Graph): Graph object.
+        visited (list): List of visited vertex IDs.
+
+    Returns:
+        list: Updated list of vertices visited during DFS.
+    """
     visited.append(i)
     temp.append(i)
     for v in g.return_node(i).edges:
@@ -29,6 +51,16 @@ def dfs(i, temp, g, visited):  # run dfs alg on graph g on vertices i. visited i
 
 
 def find_connected_components(g):  # find connected components in a graph g
+    """
+    Identifies all connected components in a graph.
+
+    Args:
+        g (Graph): Graph object.
+
+    Returns:
+        list: List of connected components, where each component is represented
+              as a list of vertex IDs.
+    """
     cc = []
     visited = []
     for i in range(len(g.vertices)):
@@ -42,13 +74,23 @@ def find_connected_components(g):  # find connected components in a graph g
 
 
 def estimating_edge_multiplicities_in_CC(component, g, xmap):
+    """
+    Estimates edge multiplicities for a connected component using Integer Linear Programming (ILP).
+
+    Args:
+        component (list): List of vertex IDs in the connected component.
+        g (Graph): Graph object.
+        xmap (dict): Dictionary containing alignment data.
+
+    Returns:
+        list: List of edges with updated multiplicities.
+    """
     Lp_prob = p.LpProblem('Problem', p.LpMinimize)  # this line initiate the ILP problem
     objective = 0  # variable for some of our objective
     sv_sum = 0  # sum all variables for SV edges
     cn_tune = 0  # sum all variables for changing CN (tuning CN)
     odd_vertices_pen = 0
     component_edges = return_all_edges_in_cc(component, g)
-    print('Siavash', component_edges)
     for i in range(len(component_edges)):
         e = component_edges[i]
         if e[3] != 'S':  # in it is not Segment edge
@@ -64,7 +106,6 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
                     sv_sum += 8 * sign_func  # updating sv_sum with weight of 8 of this variable
                 else:
                     Lp_prob += component_edges[i][1] >= 0
-                    # sv_sum += component_edges[i][1]
                     sv_sum += sign_func
             elif e[
                 3] == 'R':  # if it is reference edge we want to have another constraint if a map overlap it it should be traverse at least one so updating the constraints
@@ -113,7 +154,6 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
                     Lp_prob += cond + e[0][2] - 2 * aa == bb
                     objective = objective + e[0][2] - e[1]  # updating the Objective Function
                     odd_vertices_pen = odd_vertices_pen + bb
-                    # objective = objective + bb
         else:
             objective = objective + v_edges[0][0][2] - v_edges[0][1]
             aa = p.LpVariable('A' + str(v), lowBound=0, cat=p.LpInteger)
@@ -121,7 +161,6 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
             bb = p.LpVariable('B' + str(v), lowBound=0, cat=p.LpBinary) #This variable shows if sum dgree this vertex is odd or no
             print('B' + str(v), bb)
             Lp_prob += v_edges[0][0][2] - v_edges[0][1] - 2 * aa == bb
-            # objective = objective +  bb
             odd_vertices_pen = odd_vertices_pen + bb
             if calculate_seg_length(v_edges[0][0], g)[0] > 50000:  # for segment less than 50 Kbp no penalty applied for tuning segment CN
                 if v_edges[0][2] != 2:
@@ -177,6 +216,16 @@ def estimating_edge_multiplicities_in_CC(component, g, xmap):
 
 
 def remove_edge(g2, e):  # this function remove edge e from graph g2 and if edge e is not in g print is not in graph
+    """
+    Removes an edge from a graph.
+
+    Args:
+        g2 (Graph): Graph object.
+        e (tuple): Edge to be removed.
+
+    Returns:
+        Graph: Updated graph object with the edge removed.
+    """
     g = deepcopy(g2)
     component_edges = g.edges
     for i in range(len(component_edges)):
@@ -198,6 +247,17 @@ def remove_edge(g2, e):  # this function remove edge e from graph g2 and if edge
 
 def dfs_count(g, v, visited):  # count number of available visired edge from v in graph g
     # for more info look at here https://www.geeksforgeeks.org/fleurys-algorithm-for-printing-eulerian-path/
+    """
+    Counts the number of reachable vertices from a given vertex using DFS.
+
+    Args:
+        g (Graph): Graph object.
+        v (int): Starting vertex ID.
+        visited (list): List of visited vertex IDs.
+
+    Returns:
+        int: Number of vertices reachable from the starting vertex.
+    """
     count = 1
     visited.append(v)
     for i in g.return_node(v).edges:
@@ -207,6 +267,18 @@ def dfs_count(g, v, visited):  # count number of available visired edge from v i
 
 
 def isValidNextEdge(g, u, v, e):  # check this edge is bridge or not. Can we remove the edge?
+    """
+    Determines if an edge is valid for traversal.
+
+    Args:
+        g (Graph): Graph object.
+        u (int): Starting vertex ID.
+        v (int): Ending vertex ID.
+        e (tuple): Edge to be checked.
+
+    Returns:
+        bool: True if the edge is valid, False otherwise.
+    """
     if len(g.return_node(u).edges) == 1 and g.return_node(u).edges[0] == v:  # if there is no other way just traverse it
         return True
     else:
@@ -220,6 +292,17 @@ def isValidNextEdge(g, u, v, e):  # check this edge is bridge or not. Can we rem
 
 
 def check_traverse_segment(prev, u, next):  # this function check that after a any SV or R edge we traverse Segment edge #this one prevent none meaningfull path
+    """
+    Checks if traversing a segment edge is valid.
+
+    Args:
+        prev (int): Previous vertex ID.
+        u (int): Current vertex ID.
+        next (int): Next vertex ID.
+
+    Returns:
+        bool: True if traversal is valid, False otherwise.
+    """
     if prev // 2 == u // 2:
         return True
     elif u // 2 == next // 2:
@@ -227,6 +310,19 @@ def check_traverse_segment(prev, u, next):  # this function check that after a a
     return False
 
 def check_traverse_two_consecutive_segment(prev, u , next,g, chrom):
+    """
+    Checks if two consecutive segment traversals are valid.
+
+    Args:
+        prev (int): Previous vertex ID.
+        u (int): Current vertex ID.
+        next (int): Next vertex ID.
+        g (Graph): Graph object.
+        chrom (int): Chromosome number.
+
+    Returns:
+        bool: True if traversal is valid, False otherwise.
+    """
     if prev == next and g.return_edges(u, next) != None:
         if len( g.return_edges(u, next)) ==1 :
             if g.return_edges(u, next)[0][3]=='S':
@@ -236,6 +332,18 @@ def check_traverse_two_consecutive_segment(prev, u , next,g, chrom):
 
 
 def printEulerUtil(g, u, prev, chrom):  # find Eulerian path or circuts in graph g starting with node u and previouse seen node is prev.
+    """
+    Recursively finds an Eulerian path or circuit starting from a vertex.
+
+    Args:
+        g (Graph): Graph object.
+        u (int): Starting vertex ID.
+        prev (int): Previous vertex ID.
+        chrom (int): Chromosome number.
+
+    Returns:
+        list: List of vertex IDs forming the Eulerian path or circuit.
+    """
     valid = []
     next_find = False
     next_node = -1
@@ -253,16 +361,10 @@ def printEulerUtil(g, u, prev, chrom):  # find Eulerian path or circuts in graph
                     back_to_chrom = True
                     back_to_chrom_node = v
     valid = sorted(valid, key=lambda tup: (tup[0], tup[1][3]))  # this is all valid options for traverse
-    # print('haa', u, prev, valid,next_find, next_node)
     if len(valid) == 1:  # if length is equal to one Just traverse it.
         g = remove_edge(g, valid[0][1])
         return [u] + printEulerUtil(g, valid[0][0], u, chrom)
     elif len(valid) > 1:
-        # if back_to_chrom:
-        #     for i in valid:
-        #         if i[0] == back_to_chrom_node:
-        #             g = remove_edge(g, i[1])
-        #             return [u] + printEulerUtil(g, i[0], u,chrom)
         if next_find:  # if next is available just traverse it
             for i in valid:
                 if i[0] == next_node:
@@ -273,13 +375,11 @@ def printEulerUtil(g, u, prev, chrom):  # find Eulerian path or circuts in graph
             if i[0] != prev and i[0] != u:  # first if next node is not previouse and current one jump to it
                 g = remove_edge(g, i[1])
                 find = True
-                # print('reza')
                 return [u] + printEulerUtil(g, i[0], u, chrom)
         if not find:
             for i in valid:
                 if i[0] != prev:
                     g = remove_edge(g, i[1])
-                    # print('mamad')
                     return [u] + printEulerUtil(g, i[0], u, chrom)
             g = remove_edge(g, valid[0][1])
             return [u] + printEulerUtil(g, valid[0][0], u, chrom)
@@ -290,6 +390,16 @@ def printEulerUtil(g, u, prev, chrom):  # find Eulerian path or circuts in graph
 
 
 def detect_segment_odd_degree(component, component_edges):  # detect vertices with odd degree
+    """
+    Detects vertices with odd degrees in a connected component.
+
+    Args:
+        component (list): List of vertex IDs in the connected component.
+        component_edges (list): List of edges in the connected component.
+
+    Returns:
+        list: List of vertex IDs with odd degrees.
+    """
     ans = []
     d = {}
     for c in component:
@@ -303,6 +413,17 @@ def detect_segment_odd_degree(component, component_edges):  # detect vertices wi
     return ans
 
 def detect_residue_dgree(component, component_edges, terminal_v_ids):
+    """
+    Detects residual degrees of vertices in a connected component.
+
+    Args:
+        component (list): List of vertex IDs in the connected component.
+        component_edges (list): List of edges in the connected component.
+        terminal_v_ids (list): List of terminal vertex IDs.
+
+    Returns:
+        list: List of tuples (vertex ID, residual degree).
+    """
     ans = []
     d = {}
     for c in component:
@@ -320,6 +441,18 @@ def detect_residue_dgree(component, component_edges, terminal_v_ids):
                 ans.append((i, d[i]))
     return ans
 def scoring_paths(path_list, segment_vertices, g, centro):
+    """
+    Scores Eulerian paths based on centromeric constraints and other factors.
+
+    Args:
+        path_list (list): List of potential Eulerian paths.
+        segment_vertices (list): List of vertices representing genomic segments.
+        g (Graph): Graph object.
+        centro (dict): Dictionary of centromere positions.
+
+    Returns:
+        str: The best-scoring Eulerian path.
+    """
     best_score = 99999
     best_path = ''
     for p in path_list:
@@ -345,6 +478,19 @@ def scoring_paths(path_list, segment_vertices, g, centro):
 
 
 def printEulerTour(component, component_edges, g, output_file, centro):  # Find Eulerian path/circuts in connected components in graph g
+    """
+    Finds Eulerian paths or circuits in a connected component of a graph.
+
+    Args:
+        component (list): List of vertex IDs in the connected component.
+        component_edges (list): List of edges in the connected component.
+        g (Graph): Graph object.
+        output_file (str): Path to save the output.
+        centro (dict): Dictionary of centromere positions.
+
+    Returns:
+        tuple: (Eulerian path, list of edges with dummy edges added).
+    """
     def vertices_distance(v1, v2):
         ## assumes checkes of intra-chr is done prior
         return abs(g.vertices[v1].pos - g.vertices[v2].pos)
@@ -469,13 +615,8 @@ def printEulerTour(component, component_edges, g, output_file, centro):  # Find 
 
     odd_vertices = detect_segment_odd_degree(component, component_edges)
     print('ODD vertices', odd_vertices)
-    # for i in range(0,len(segment_vertices), 2):
-    #     g2.add_dummy_edges(segment_vertices[i], segment_vertices[i+1])
-    # print(g2.edges)
-    print('TOUR')
     print(segment_vertices)
     if len(odd_vertices) == 0:  # Eulerian circuites exist
-        # a = printEulerUtil(g2, segment_vertices[0], -1)
         a = []
         for i in segment_vertices:
             a.append(printEulerUtil(g2, i, -1, g.return_node(i).chromosome))
@@ -487,7 +628,6 @@ def printEulerTour(component, component_edges, g, output_file, centro):  # Find 
             a = printEulerUtil(g2, odd_vertices[1], -1, g.return_node(odd_vertices[0]).chromosome)
         else:  # If not exist add a dummy edges to make it Eulerian and then find from segment vertices
             g2.add_dummy_edges(odd_vertices[0], odd_vertices[1], 1)
-            # a = printEulerUtil(g2, segment_vertices[0], -1)
             a = []
             for i in segment_vertices:
                 a.append(printEulerUtil(g2, i, -1, g.return_node(i).chromosome))
@@ -501,7 +641,6 @@ def printEulerTour(component, component_edges, g, output_file, centro):  # Find 
             for i in segment_vertices:
                 a.append(printEulerUtil(g2, i, -1, g.return_node(i).chromosome))
             a = scoring_paths(a, segment_vertices, g, centro)
-            # a = printEulerUtil(g2, segment_vertices[-1], -1)#Siavash in chaneed shode
         else:
             count = 0
             save_index = 0
@@ -519,7 +658,6 @@ def printEulerTour(component, component_edges, g, output_file, centro):  # Find 
     print('all edges with dummy: ', g2.edges)
     g2.print_node()
     print('Answer', a)
-
     with open(output_file, 'w') as fp_write:
         for edge in g2.edges:
             fp_write.write(str(edge) + '\n')
