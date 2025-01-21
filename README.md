@@ -198,6 +198,15 @@ In `OMKar_report/`:
 2. **Sample Report (`{name}.html`)**:
     - Open in a browser, this gives the HTML report for a particular sample. This report is separated by chromosome clusters. Each cluster includes the ISCN SV list, predicted disrupted DDG2P genes, Molecular Karyotype output, tabulated BED file of the SV calls not incorporated, and a visualization of the chromosome cluster.
 
+### Known Bug in Solve v3.7
+
+If you are using the Solve pipeline version 3.7, please be aware of a reported bug. This version may introduce artifacts that report:
+
+1. **Deletion on chromosome 22** in the USP18 region (hg38: 18,181,891–18,754,038).
+2. **Inversion on chromosome 7** in the PMS2 region (hg38: 5,986,390–6,519,332).
+
+These artifacts are not observed in Solve versions 3.6 or 3.8. If OMKar reports events in these regions while using Solve v3.7, it is highly likely that these are artifacts. Please interpret such results with caution.
+
 ### License
 BSD-3-Clause license.
 
