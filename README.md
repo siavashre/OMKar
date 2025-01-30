@@ -128,6 +128,21 @@ Curated DIR structure:
 │   └── exp_refineFinal1_merged.xmap
 ...
 ```
+## 🛠 Running OMKar with Docker  
+
+OMKar is available as a Docker container, making it easy to run without installing dependencies.  
+### 📥 Pull the Docker Image  
+To get the latest version of OMKar from Docker Hub, run:  
+
+```bash
+docker pull siavashre/omkar
+```
+### 🚀 Running OMKar in a Container
+To run OMKar with an input directory and output file:
+```bash
+docker run --rm omkar -dir test_input -o test_output -single -report
+```
+If your "test_input" directory and "test_output" file exist on your local machine, you need to mount them inside the container.
 
 ### Usage
 The default usage of OMKar is batch run all samples within an input master data directory (detailed in [Input File Structure](#input-file-structure)). 
