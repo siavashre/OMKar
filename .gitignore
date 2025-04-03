@@ -10,3 +10,5 @@ __pycache__/
 /test_output2/
 /validator_function.py
 /G2P_prediction_summary.py
+/demo_input/
+/demo_output/

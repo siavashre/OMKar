@@ -6,5 +6,14 @@ event<3>,type<deletion>,blocks<['33.1.wt(60+).59+.61+']>
 event<4>,type<deletion>,blocks<['43.1.wt(77+,78+).76+.78-']>
 event<5>,type<insertion>,blocks<['4.1b.mt(7-).8-.48+']>
 event<6>,type<insertion>,blocks<['43.2.mt(78-).76+.79+']>
+1223debug: (2, 'deletion', ['25.1.wt(38+).37+.39+']), 2, 0.6707321653171899, 12, 104369
+1223debug: (3, 'deletion', ['33.1.wt(60+).59+.61+']), 2, 0.8983758535624171, 17, 418534
+1221 test
+full_event: {'count': 3, 'events': [(0, 'balanced_translocation_unassociated', ['4.1a.mt(8-).47+.7-', '5.1.wt(8+).7+.9+']), (2, 'deletion', ['25.1.wt(38+).37+.39+']), (3, 'deletion', ['33.1.wt(60+).59+.61+'])]}
+sv_missed_event: {'count': 4, 'events': [(5, 'insertion', ['4.1b.mt(7-).8-.48+']), (1, 'tandem_duplication', ['31.1.mt(53+).52+.53+']), (4, 'deletion', ['43.1.wt(77+,78+).76+.78-']), (6, 'insertion', ['43.2.mt(78-).76+.79+'])]}
+sv_missed_svedge: [[('insertion', 'Chr2', 221204994, 'Chr2', 221204993), ('insertion', 'Chr2', 178043170, 'Chr14', 105159388)], [('tandem_duplication', 'Chr16', 32964090, 'Chr16', 32264687)], [('deletion', 'Chr22', 18181893, 'Chr22', 21167062)], [('insertion', 'Chr22', 18181892, 'Chr22', 21167062), ('insertion', 'Chr22', 18921117, 'Chr22', 21167063)]]
 ([4, 5], [25], [31], [33], [43])
+1223debug: (2, 'deletion', ['25.1.wt(38+).37+.39+']), 2, 0.6707321653171899, 12, 104369
+1223debug: (3, 'deletion', ['33.1.wt(60+).59+.61+']), 2, 0.8983758535624171, 17, 418534
 {'deletion': 3, 'duplicated_insertion': 2, 'nonreciprocal_translocation': 1, 'tandem_duplication': 1}
+HTML file generated
