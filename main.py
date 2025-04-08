@@ -128,6 +128,8 @@ def main():
         sys.stdout = default_stdout
     else:
         for sample_dir in os.listdir(args.dir):
+            if not os.path.isdir(os.path.join(args.dir, sample_dir)):
+                continue  # this ignores non-dir files such as .DS_Store
             filepaths = find_input_file_paths(f"{args.dir}/{sample_dir}/")
             sample_name = sample_dir
             print(f'running sample: {sample_name}')
