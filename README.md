@@ -128,6 +128,24 @@ Curated DIR structure:
 │   └── exp_refineFinal1_merged.xmap
 ...
 ```
+## 🛠 Running OMKar with conda
+### 🚀 Installation
+You can install **OMKar** via `conda` from the [Anaconda Cloud](https://anaconda.org/siavashrei/omkar):
+### ✅ Requirements
+
+- `conda` (Miniconda or Anaconda)
+- Python 3.10+
+
+### 🔧 Installation (Recommended)
+
+```bash
+conda install -c siavashrei omkar
+```
+### 🧪 Test Installation
+```bash
+omkar --help
+```
+You should see the OMKar command-line usage instructions.
 ## 🛠 Running OMKar with Docker  
 
 OMKar is available as a Docker container, making it easy to run without installing dependencies.  
