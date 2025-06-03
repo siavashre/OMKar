@@ -170,6 +170,13 @@ def detect_and_filter_svs(smap, rcop, segments, xmap, centro):
                     f.write(i.line)
                     bed_writer.writerow([i.ref_c_id1, i.ref_start, i.ref_end, i.sv_type, i.smap_id, i.confidence])
         f.close()
+
+    with open(output2.replace('txt', 'bedpe'), 'w', newline='') as bed:
+        bed_writer = csv.writer(bed, delimiter='\t')
+        bed_writer.writerow(['chromosome1', 'bp1', 'chromosome2', 'bp2', 'SV_type', 'smap_id', 'confidence'])
+        for i in smap:
+            if not i.sv_type.startswith('inser'):
+                bed_writer.writerow([i.ref_c_id1, i.ref_start,i.ref_c_id2, i.ref_end, i.sv_type, i.smap_id, i.confidence])
     for i in smap:
         # translocation applied filters.
         if i.sv_type.startswith('trans') and i.confidence >= 0.05 and not i.sv_type.endswith('common') and not i.sv_type.endswith('segdupe') and (
