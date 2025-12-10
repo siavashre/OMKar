@@ -82,7 +82,7 @@ python3 validate_installation.py
 The four required files from Bionano Solve output are the following:
 1) cnv_calls_exp.txt
 2) cnv_rcmap_exp.txt
-3) exp_refineFinal1_merged_filter_inversions_orig.smap
+3) exp_refineFinal1_merged_filter_inversions.smap
 4) exp_refineFinal1_merged.xmap
 
 The input data directory needs to be either the Bionano Solve's default output structure, 
@@ -99,7 +99,7 @@ Bionano default output DIR structure:
 │       │       └── cnv_rcmap_exp.txt
 │       └── exp_refineFinal1_sv/
 │           └── merged_smaps/
-│               ├── exp_refineFinal1_merged_filter_inversions_orig.smap
+│               ├── exp_refineFinal1_merged_filter_inversions.smap
 │               └── exp_refineFinal1_merged.xmap
 ├── <sample2_dir>/
 │   └── contigs/
@@ -109,7 +109,7 @@ Bionano default output DIR structure:
 │       │       └── cnv_rcmap_exp.txt
 │       └── exp_refineFinal1_sv/
 │           └── merged_smaps/
-│               ├── exp_refineFinal1_merged_filter_inversions_orig.smap
+│               ├── exp_refineFinal1_merged_filter_inversions.smap
 │               └── exp_refineFinal1_merged.xmap
 ...
 ```
