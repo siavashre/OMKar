@@ -125,10 +125,10 @@ class Graph:  # Class of graph
         for e in self.edges:
             if (a == e[0] and b == e[1]) or (a == e[1] and b == e[0]):
                 ans.append(e)
-        # if len(ans) > 0:
-        return ans
-        # else:
-            # return []
+        if len(ans) > 0:
+            return ans
+        else:
+            return None
 
     def add_dummy_edges(self, u, v, cnn):  # add dummy edges with type "D" between two nodes if already edge exist between them increase the CN
         """
