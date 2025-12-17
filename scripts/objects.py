@@ -151,7 +151,7 @@ class Graph:  # Class of graph
                 self.edges.append((u, v, cnn, 'D'))
                 self.return_node(u).append_edges(v)
                 self.return_node(v).append_edges(u)
-        elif e == None or len(e) == 0:
+        elif e == None:
             self.edges.append((u, v, cnn, 'D'))
             self.return_node(u).append_edges(v)
             self.return_node(v).append_edges(u)
