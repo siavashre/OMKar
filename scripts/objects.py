@@ -178,11 +178,12 @@ class Graph:  # Class of graph
             e_type (str): Type of the edge to update.
         """
         e_list = self.return_edges(a, b)
-        for e in e_list:
-            if e[3] == e_type:
-                self.edges.remove(e)
-                if count > 0:
-                    self.edges.append((e[0], e[1], count, e[3]))
+        if e_list != None:
+            for e in e_list:
+                if e[3] == e_type:
+                    self.edges.remove(e)
+                    if count > 0:
+                        self.edges.append((e[0], e[1], count, e[3]))
 
     def label_terminal_vertices(self):
         ## mark the first and the last vertices on this graph, for each chromosome
